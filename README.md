@@ -1,6 +1,9 @@
 <p align="center">
   <a href="https://github.com/gigliof/bach-to-basics">
-    <img alt="Bach to Basics" src="docs/logo.png" width="340">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark-mode.png">
+      <img alt="Bach to Basics" src="docs/logo.png" width="340">
+    </picture>
   </a>
 </p>
 
