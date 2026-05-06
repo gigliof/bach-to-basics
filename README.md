@@ -18,7 +18,7 @@ A browser-based piano practice tool. Drop in a **MIDI file**, a **MusicXML score
 
 | Sheet music | All views | Settings |
 |---|---|---|
-| ![Sheet music](docs/screenshot-sheet.png) | ![All views](docs/screenshot-all.png) | ![Settings](docs/screenshot-settings.png) |
+| [![Sheet music](docs/screenshot-sheet.png)](docs/screenshot-sheet.png) | [![All views](docs/screenshot-all.png)](docs/screenshot-all.png) | [![Settings](docs/screenshot-settings.png)](docs/screenshot-settings.png) |
 
 ## Features
 
