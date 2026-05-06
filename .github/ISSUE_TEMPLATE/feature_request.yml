@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest an idea or improvement
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea? Check the [roadmap](https://github.com/gigliof/bach-to-basics#roadmap) first — some features are already planned.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case or frustration behind the request.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like to see? Sketches, examples, or references to similar tools are welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Any workarounds you're currently using?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Falling notes / visualization
+        - Sheet music rendering
+        - Piano keyboard
+        - Audio / playback
+        - MIDI input
+        - File import / export
+        - Practice tools
+        - Settings / UI
+        - Performance
+        - Other
+    validations:
+      required: true

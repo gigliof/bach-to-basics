@@ -1,0 +1,87 @@
+name: Bug report
+description: Something isn't working as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. The more detail you provide, the faster it gets fixed.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Falling notes / visualization
+        - Sheet music rendering
+        - Piano keyboard
+        - Audio / playback
+        - MIDI input (hardware keyboard)
+        - File import (MIDI)
+        - File import (MusicXML / MXL)
+        - File import (PDF)
+        - Practice tools (loop, speed trainer, wait mode, metronome)
+        - Settings / UI
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Import a MIDI file
+        2. Enable wait mode
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: how
+    attributes:
+      label: How are you running the app?
+      options:
+        - pnpm dev (local)
+        - Docker
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser + version
+      placeholder: "Chrome 124, Edge 123, ..."
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "macOS 14, Windows 11, ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console errors (if any)
+      description: Open DevTools → Console and paste anything relevant.
+      render: shell

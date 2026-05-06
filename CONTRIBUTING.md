@@ -31,14 +31,18 @@ pnpm dev                 # starts frontend (5173) + backend (8000) concurrently
 
 ## Before opening a PR
 
-1. `pnpm --filter frontend exec tsc --noEmit`: type check
-2. `pnpm test`: frontend unit tests
-3. If you touched the backend: `cd backend && python -m py_compile $(find . -name "*.py" -not -path "./.venv/*")`
-4. Verify the dev server still boots cleanly (`pnpm dev`)
+1. `pnpm lint`: ESLint (must pass with zero warnings)
+2. `pnpm --filter frontend exec tsc --noEmit`: type check
+3. `pnpm test`: frontend unit tests
+4. If you touched the backend: `cd backend && python -m py_compile $(find . -name "*.py" -not -path "./.venv/*")`
+5. Verify the dev server still boots cleanly (`pnpm dev`)
+
+The pre-commit hook runs ESLint + Prettier automatically on staged files, so formatting is handled for you.
 
 ## Reporting bugs
 
 Include:
+
 - Browser + OS version
 - Whether you're running via `pnpm dev` or Docker
 - Steps to reproduce
@@ -46,4 +50,4 @@ Include:
 
 ## Security
 
-Found a vulnerability? Please don't open a public issue. Reach out via the contact info on the repo owner's GitHub profile.
+Found a vulnerability? Please don't open a public issue. See [SECURITY.md](SECURITY.md) for how to report it privately.

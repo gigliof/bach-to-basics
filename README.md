@@ -16,9 +16,9 @@ A browser-based piano practice tool. Drop in a **MIDI file**, a **MusicXML score
 
 ![Bach to Basics demo](docs/demo.gif)
 
-| Sheet music | All views | Settings |
-|---|---|---|
-| [![Sheet music](docs/screenshot-sheet.png)](docs/screenshot-sheet.png) | [![All views](docs/screenshot-all.png)](docs/screenshot-all.png) | [![Settings](docs/screenshot-settings.png)](docs/screenshot-settings.png) |
+| Sheet music                               | All views                             | Settings                                  |
+| ----------------------------------------- | ------------------------------------- | ----------------------------------------- |
+| ![Sheet music](docs/screenshot-sheet.png) | ![All views](docs/screenshot-all.png) | ![Settings](docs/screenshot-settings.png) |
 
 ## Features
 
@@ -31,6 +31,7 @@ A browser-based piano practice tool. Drop in a **MIDI file**, a **MusicXML score
 Drag-and-drop anywhere on the window, or use the import button.
 
 > ⚠️ **A note on import accuracy.** Both PDF-to-MIDI (optical music recognition) and MIDI-to-sheet-music (notation reconstruction) are inherently lossy conversions. Expect some inconsistencies:
+>
 > - **PDF imports** can mis-read notes, dynamics, ornaments, articulation, and voicing, especially with low-resolution scans, handwritten scores, or complex layouts. Audiveris is the best open-source OMR engine available, but no engine matches a careful human transcription.
 > - **MIDI imports** produce sheet music by re-deriving notation from raw note timings. MIDI doesn't encode key signatures, beaming, voicing, articulation, or enharmonic spelling, so the rendered sheet is an interpretation, not a faithful reproduction of the composer's original score.
 >
@@ -67,16 +68,16 @@ Drag-and-drop anywhere on the window, or use the import button.
 
 ## Tech stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS |
-| Rendering | PixiJS 8 (falling notes + piano), AlphaTab (sheet music) |
-| Audio | Tone.js (scheduling), smplr (sampled instruments), Web Audio API |
-| MIDI input | WebMidi.js |
-| State | Zustand |
-| Backend | FastAPI (Python 3.11/3.12) |
-| Music processing | music21, defusedxml |
-| OMR (optional) | Audiveris (Java) |
+| Layer            | Technology                                                       |
+| ---------------- | ---------------------------------------------------------------- |
+| Frontend         | React 19, TypeScript, Vite, Tailwind CSS                         |
+| Rendering        | PixiJS 8 (falling notes + piano), AlphaTab (sheet music)         |
+| Audio            | Tone.js (scheduling), smplr (sampled instruments), Web Audio API |
+| MIDI input       | WebMidi.js                                                       |
+| State            | Zustand                                                          |
+| Backend          | FastAPI (Python 3.11/3.12)                                       |
+| Music processing | music21, defusedxml                                              |
+| OMR (optional)   | Audiveris (Java)                                                 |
 
 ## Running the app
 
@@ -129,16 +130,16 @@ Without the JAR, MIDI / MusicXML import still works, only PDF import is unavaila
 
 All backend settings come from environment variables. Copy `.env.example` to `.env` and edit.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated list of allowed CORS origins |
-| `BACKEND_API_KEY` | *(unset = open)* | When set, all requests must include `X-API-Key: <value>` |
-| `REQUIRE_AUTH` | *(unset)* | Set to `1` to make the server refuse to start if `BACKEND_API_KEY` is not configured — useful for preventing accidental open deployments |
-| `RATE_LIMIT_PER_MIN` | `60` | Max requests per IP per minute. `0` disables it |
-| `HEAVY_RATE_LIMIT_PER_MIN` | `10` | Stricter limit applied to expensive endpoints (`/omr/`, `/youtube/`) |
-| `TRUSTED_PROXY_IPS` | *(unset)* | Comma-separated IPs of trusted reverse proxies. When set, the real client IP is read from `X-Forwarded-For` instead of the connection address |
-| `MUSIC21_TIMEOUT_S` | `60` | Hard timeout (seconds) for music21 conversions (MIDI-to-MusicXML, MusicXML-to-MIDI). Raise for very dense scores |
-| `AUDIVERIS_TIMEOUT_S` | `120` | Hard timeout (seconds) for Audiveris OMR. Raise for large or multi-page PDFs |
+| Variable                   | Default                 | Description                                                                                                                                   |
+| -------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ALLOWED_ORIGINS`          | `http://localhost:5173` | Comma-separated list of allowed CORS origins                                                                                                  |
+| `BACKEND_API_KEY`          | _(unset = open)_        | When set, all requests must include `X-API-Key: <value>`                                                                                      |
+| `REQUIRE_AUTH`             | _(unset)_               | Set to `1` to make the server refuse to start if `BACKEND_API_KEY` is not configured — useful for preventing accidental open deployments      |
+| `RATE_LIMIT_PER_MIN`       | `60`                    | Max requests per IP per minute. `0` disables it                                                                                               |
+| `HEAVY_RATE_LIMIT_PER_MIN` | `10`                    | Stricter limit applied to expensive endpoints (`/omr/`, `/youtube/`)                                                                          |
+| `TRUSTED_PROXY_IPS`        | _(unset)_               | Comma-separated IPs of trusted reverse proxies. When set, the real client IP is read from `X-Forwarded-For` instead of the connection address |
+| `MUSIC21_TIMEOUT_S`        | `60`                    | Hard timeout (seconds) for music21 conversions (MIDI-to-MusicXML, MusicXML-to-MIDI). Raise for very dense scores                              |
+| `AUDIVERIS_TIMEOUT_S`      | `120`                   | Hard timeout (seconds) for Audiveris OMR. Raise for large or multi-page PDFs                                                                  |
 
 > **Web MIDI requires HTTPS** in production. Plain `http://` only works on `localhost`.
 
@@ -188,30 +189,35 @@ These will become user-facing in upcoming releases. PRs welcome.
 <summary><strong>Sheet music doesn't render after loading a MIDI file</strong></summary>
 
 The MIDI-to-MusicXML conversion runs on the backend. Check that the backend is up (`curl http://localhost:8000/health` should return OK) and look at the backend terminal for `music21` errors. Very dense scores can hit the `MUSIC21_TIMEOUT_S` (default 60s); raise it if needed.
+
 </details>
 
 <details>
 <summary><strong>No sound from the on-screen piano</strong></summary>
 
 The first interaction (any click) wakes the audio context. If you still hear nothing, open DevTools > Console and look for errors related to `AudioContext` or sample fetches from `danigb.github.io` / `gleitz.github.io`. Some corporate networks block these CDNs.
+
 </details>
 
 <details>
 <summary><strong>"WebMIDI not supported" on Firefox or Safari</strong></summary>
 
 Use Chrome, Edge, Brave, or Arc. Firefox and Safari haven't implemented Web MIDI.
+
 </details>
 
 <details>
 <summary><strong>PDF import says "OMR engine not available"</strong></summary>
 
 Either Audiveris isn't installed, or `audiveris.jar` isn't at `backend/bin/audiveris.jar`, or Java 17+ isn't on the PATH. See the PDF import section above. MIDI and MusicXML import are unaffected.
+
 </details>
 
 <details>
 <summary><strong>Docker build fails on the frontend</strong></summary>
 
 The frontend Dockerfile uses the repo root as build context to read `pnpm-workspace.yaml` and `shared/`. If you've moved or renamed those, update `docker-compose.yml`'s `build.context` accordingly.
+
 </details>
 
 ## Contributing
@@ -225,4 +231,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports and PRs welcome.
 Third-party components (AlphaTab, music21, etc.) keep their own licenses, see [NOTICE](NOTICE) for the rundown. Notably:
 
 - **AlphaTab** is MPL-2.0 (per-file copyleft), fine for both open source and commercial use as long as you don't modify AlphaTab's own files.
-- **Audiveris** is AGPL-3.0 and is *not* bundled, users download it separately, so this repo doesn't inherit AGPL obligations.
+- **Audiveris** is AGPL-3.0 and is _not_ bundled, users download it separately, so this repo doesn't inherit AGPL obligations.
