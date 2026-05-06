@@ -30,4 +30,4 @@ jobs:
         run: pnpm --filter frontend exec tsc --noEmit
 
       - name: Test
-        run: pnpm test --reporter=verbose --passWithNoTests
+        run: pnpm --filter frontend exec vitest run --reporter=verbose --passWithNoTests
