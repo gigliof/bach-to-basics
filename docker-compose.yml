@@ -1,0 +1,43 @@
+# Bach to Basics: production-style docker compose
+#
+# Usage:
+#   cp .env.example .env       # optional, only needed if you want to set BACKEND_API_KEY
+#   docker compose up          # build + start
+#   open http://localhost:5173
+#
+# To enable PDF import via Audiveris, drop audiveris.jar into ./backend/bin/
+# before bringing the stack up, it gets mounted into the backend container.
+#
+# This compose file is for end users who want to RUN the app. For active
+# development with hot reload, use `pnpm dev` directly on your host.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bach-backend
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173}
+      - BACKEND_API_KEY=${BACKEND_API_KEY:-}
+      - RATE_LIMIT_PER_MIN=${RATE_LIMIT_PER_MIN:-60}
+      - MUSIC21_TIMEOUT_S=${MUSIC21_TIMEOUT_S:-60}
+      - FINGERING_TIMEOUT_S=${FINGERING_TIMEOUT_S:-120}
+    volumes:
+      # Mount audiveris.jar from host (optional - PDF import is disabled if absent)
+      - ./backend/bin:/app/bin:ro
+
+  frontend:
+    build:
+      # Root context so the Dockerfile can read pnpm-workspace.yaml + shared/
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: bach-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend

@@ -1,0 +1,8 @@
+.venv/
+.venv-ai/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.DS_Store
+bin/*.jar

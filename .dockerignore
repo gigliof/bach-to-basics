@@ -1,0 +1,34 @@
+# Root-level .dockerignore — applied to the build context for the frontend
+# (which uses the repo root as context). Keep this list aggressive so the
+# build context stays small.
+
+node_modules/
+**/node_modules/
+**/.venv/
+**/.venv-ai/
+**/__pycache__/
+**/dist/
+**/.vite/
+**/tsconfig.tsbuildinfo
+
+.git/
+.github/
+.vscode/
+.claude/
+.idea/
+
+.env
+.env.*
+!.env.example
+
+playwright-report/
+test-results/
+coverage/
+
+.DS_Store
+**/.DS_Store
+*.log
+*.swp
+*.swo
+
+backend/bin/*.jar

@@ -1,0 +1,18 @@
+# Core requirements: work with Python 3.13
+fastapi>=0.111
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+pydantic>=2.0
+defusedxml>=0.7
+
+# Music processing
+music21>=9.1
+
+# YouTube download
+yt-dlp>=2024.4.9
+
+# PDF processing (for Audiveris input prep)
+pdf2image>=1.17
+
+# Fingering generation
+pianoplayer>=0.9

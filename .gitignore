@@ -1,0 +1,109 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+
+# ── Build output ──────────────────────────────────────────────────────────────
+frontend/dist/
+frontend/.vite/
+frontend/tsconfig.tsbuildinfo
+
+# ── Python ────────────────────────────────────────────────────────────────────
+backend/.venv/
+backend/.venv-*/
+backend/venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+*.pem
+*.key
+secrets.*
+
+# ── Audiveris (large binary — download separately per README) ────────────────
+backend/bin/*.jar
+
+# ── OS metadata ───────────────────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE / editor ──────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+.fleet/
+*.swp
+*.swo
+*~
+*.code-workspace
+
+# ── AI / coding-assistant artifacts (local only) ─────────────────────────────
+.claude/
+.cursor/
+.cursorrules
+.cursorignore
+.cursor.json
+.aider*
+.continue/
+.windsurf/
+.copilot/
+.copilotignore
+.codeium/
+.tabnine/
+.codegpt/
+.zed-cache/
+ai-notes/
+prompts/
+.chats/
+*.chat.md
+
+# ── Local notes / scratch / drafts (NEVER commit personal docs) ──────────────
+NOTES.md
+TODO.md
+ROADMAP.md
+SCRATCH.md
+DRAFT.md
+WIP.md
+notes/
+scratch/
+drafts/
+local-docs/
+private/
+.private/
+*.draft
+*.bak
+*.old
+*.tmp
+*.orig
+
+# ── Test / coverage output ────────────────────────────────────────────────────
+playwright-report/
+test-results/
+coverage/
+.nyc_output/
+lcov.info
+junit.xml
+*.lcov
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── Docker / runtime data ─────────────────────────────────────────────────────
+.docker-data/
+*.pid
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.iml
+.history/

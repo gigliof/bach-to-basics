@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- T4-1: Content Security Policy: restrict script/style/connect sources.
+         'unsafe-inline' for script-src is needed for the error overlay below;
+         tighten by moving it to a separate .js file if desired. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://gleitz.github.io https://danigb.github.io https://goldst.dev; worker-src 'self' blob:; object-src 'none'; base-uri 'self'" />
+    <title>Bach to Basics</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon-light.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Error catcher: shows any unhandled JS error directly on screen -->
+    <div id="error-overlay" style="display:none;position:fixed;inset:0;background:#1a0000;color:#ff6b6b;padding:24px;font:14px monospace;z-index:9999;white-space:pre-wrap;overflow:auto;"></div>
+    <script>
+      // T3-3: Only show detailed stack traces in development (localhost).
+      // Production displays a user-friendly message without file paths.
+      var isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      window.onerror = function(msg, src, line, col, err) {
+        var el = document.getElementById('error-overlay');
+        el.style.display = 'block';
+        el.textContent = isDev
+          ? 'JS ERROR:\n' + msg + '\n\nFile: ' + src + ':' + line + '\n\n' + (err && err.stack ? err.stack : '')
+          : 'Something went wrong. Please reload the page.';
+      };
+      window.addEventListener('unhandledrejection', function(e) {
+        var el = document.getElementById('error-overlay');
+        el.style.display = 'block';
+        if (isDev) {
+          el.textContent = (el.textContent || '') + '\n\nUNHANDLED PROMISE:\n' + (e.reason && e.reason.stack ? e.reason.stack : String(e.reason));
+        } else if (!el.textContent) {
+          el.textContent = 'Something went wrong. Please reload the page.';
+        }
+      });
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
