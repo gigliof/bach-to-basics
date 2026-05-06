@@ -10,15 +10,16 @@
 <p align="center">
   <a href="https://github.com/gigliof/bach-to-basics/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-7c3aed"></a>
   <a href="https://github.com/gigliof/bach-to-basics/issues"><img alt="Issues" src="https://img.shields.io/github/issues/gigliof/bach-to-basics"></a>
+  <a href="https://ko-fi.com/gigliof"><img alt="Support on Ko-fi" src="https://img.shields.io/badge/support-ko--fi-FF5E5B?logo=ko-fi&logoColor=white"></a>
 </p>
 
 A browser-based piano practice tool. Drop in a **MIDI file**, a **MusicXML score**, or even a **PDF of sheet music**. Bach to Basics turns it into synced views of falling notes, an interactive 88-key piano, and rendered sheet music, then layers on practice tools (A/B loop, speed trainer, wait mode, metronome, transpose) to help you learn the piece.
 
-![Bach to Basics demo](docs/demo.gif)
+[![Bach to Basics demo](docs/demo.gif)](https://raw.githubusercontent.com/gigliof/bach-to-basics/main/docs/demo.gif)
 
-| Sheet music                               | All views                             | Settings                                  |
-| ----------------------------------------- | ------------------------------------- | ----------------------------------------- |
-| ![Sheet music](docs/screenshot-sheet.png) | ![All views](docs/screenshot-all.png) | ![Settings](docs/screenshot-settings.png) |
+| Sheet music                                                                                                                          | All views                                                                                                                      | Settings                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| [![Sheet music](docs/screenshot-sheet.png)](https://raw.githubusercontent.com/gigliof/bach-to-basics/main/docs/screenshot-sheet.png) | [![All views](docs/screenshot-all.png)](https://raw.githubusercontent.com/gigliof/bach-to-basics/main/docs/screenshot-all.png) | [![Settings](docs/screenshot-settings.png)](https://raw.githubusercontent.com/gigliof/bach-to-basics/main/docs/screenshot-settings.png) |
 
 ## Features
 
