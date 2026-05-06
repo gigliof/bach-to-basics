@@ -4,9 +4,9 @@ import { accuracyTracker } from "../engine/AccuracyTracker";
 
 export interface AccuracyState {
   correct: number;
-  wrong:   number;
-  missed:  number;
-  score:   number;   // 0-100
+  wrong: number;
+  missed: number;
+  score: number; // 0-100
 }
 
 const INITIAL: AccuracyState = { correct: 0, wrong: 0, missed: 0, score: 0 };
@@ -21,6 +21,7 @@ export function useAccuracy(enabled: boolean): AccuracyState {
   useEffect(() => {
     accuracyTracker.enable(enabled);
     if (!enabled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: synchronously reset accuracy when disabled
       setState(INITIAL);
       return;
     }

@@ -13,20 +13,18 @@ import type { TempoEvent } from "@bach-to-basics/shared";
 // malformed XML. AlphaTab processes MusicXML as data, not HTML, so CDATA
 // poses no XSS risk here.
 function sanitizeMusicXml(xml: string): string {
-  return xml
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/\bon\w+\s*=/gi, "data-removed=");
+  return xml.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\bon\w+\s*=/gi, "data-removed=");
 }
 
 export function SheetMusicView() {
-  const scrollRef     = useRef<HTMLDivElement>(null); // outer overflow-auto container
-  const containerRef  = useRef<HTMLDivElement>(null); // inner AlphaTab host
+  const scrollRef = useRef<HTMLDivElement>(null); // outer overflow-auto container
+  const containerRef = useRef<HTMLDivElement>(null); // inner AlphaTab host
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const apiRef        = useRef<any>(null);
-  const playerReady   = useRef(false);   // true once soundFont is loaded
-  const scoreLoaded   = useRef(false);   // true once score SVG is rendered
+  const apiRef = useRef<any>(null);
+  const playerReady = useRef(false); // true once soundFont is loaded
+  const scoreLoaded = useRef(false); // true once score SVG is rendered
   const lastScrollTop = useRef(-1);
-  const lastScrollMs  = useRef(0);
+  const lastScrollMs = useRef(0);
 
   // ── AlphaTab init (runs once on mount) ──────────────────────────────────
   useEffect(() => {
@@ -36,11 +34,10 @@ export function SheetMusicView() {
     import("@coderline/alphatab").then(({ AlphaTabApi }) => {
       if (!containerRef.current) return;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const api = new AlphaTabApi(containerRef.current, {
         core: { engine: "svg", enableLazyLoading: false, logLevel: 0 },
         display: {
-          layoutMode: 0,      // page mode - vertical scroll
+          layoutMode: 0, // page mode - vertical scroll
           scale: 0.9,
           // stretchForce 0 = notes keep their natural rhythmic proportions (like
           // a printed score).  A very small value (0.1) avoids a ragged right
@@ -57,7 +54,7 @@ export function SheetMusicView() {
           enableCursor: true,
           enableUserInteraction: true,
           soundFont: "/soundfont/sonivox.sf3",
-          scrollMode: 0,   // we drive scrolling ourselves
+          scrollMode: 0, // we drive scrolling ourselves
         },
       } as never);
 
@@ -69,12 +66,18 @@ export function SheetMusicView() {
           playerReady.current = true;
           api.masterVolume = 0;
         });
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       // ── Mark score as rendered so cursor/scroll can activate ─────────────
       try {
-        api.scoreLoaded.on(() => { scoreLoaded.current = true; });
-      } catch { /* ignore */ }
+        api.scoreLoaded.on(() => {
+          scoreLoaded.current = true;
+        });
+      } catch {
+        /* ignore */
+      }
 
       // ── Load score if MusicXML is already available ──────────────────────
       const initialDoc = useAppStore.getState().document;
@@ -95,7 +98,9 @@ export function SheetMusicView() {
             for (const note of beat.notes) syncEngine.stopMidi(note.realValue);
           }, 500);
         });
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       // ── Transport tick: cursor position + scroll ─────────────────────────
       // IMPORTANT: do NOT close over `doc` here - it would always be null
@@ -120,8 +125,8 @@ export function SheetMusicView() {
         lastScrollMs.current = now;
 
         requestAnimationFrame(() => {
-          const scrollEl = scrollRef.current;     // outer scroll container
-          const innerEl  = containerRef.current;  // AlphaTab host (cursor lives here)
+          const scrollEl = scrollRef.current; // outer scroll container
+          const innerEl = containerRef.current; // AlphaTab host (cursor lives here)
           if (!scrollEl || !innerEl) return;
           // AlphaTab renders absolutely-positioned cursor overlays inside innerEl
           const cursor =
@@ -150,7 +155,9 @@ export function SheetMusicView() {
       playerReady.current = false;
       scoreLoaded.current = false;
       if (apiRef.current) {
-        try { apiRef.current.destroy(); } catch {}
+        try {
+          apiRef.current.destroy();
+        } catch {}
         apiRef.current = null;
       }
     };
@@ -158,8 +165,8 @@ export function SheetMusicView() {
 
   // ── Load when MusicXML/mxlBuffer arrives after initial mount ────────────
   const { document: doc, settings } = useAppStore();
-  const isDark      = settings.theme === "dark";
-  const keepWhite   = isDark && settings.sheetMusicWhiteBackground;
+  const isDark = settings.theme === "dark";
+  const keepWhite = isDark && settings.sheetMusicWhiteBackground;
   const invertSheet = isDark && !settings.sheetMusicWhiteBackground;
 
   // ── Adapt stretchForce to layout mode ────────────────────────────────────
@@ -168,6 +175,7 @@ export function SheetMusicView() {
   // near-natural note spacing (0.1) for a printed-score look.
   // The value is stored in a ref so the load effect below can read it fresh.
   const stretchForceRef = useRef(0.1);
+  // eslint-disable-next-line react-hooks/refs -- intentional: keeps ref in sync with derived state for effect to read fresh
   stretchForceRef.current = settings.layoutMode === "all" ? 0.5 : 0.1;
 
   useEffect(() => {
@@ -179,7 +187,9 @@ export function SheetMusicView() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (apiRef.current.settings as any).display.stretchForce = stretchForceRef.current;
       apiRef.current.render();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [settings.layoutMode]);
 
   // ── Load score when MusicXML/mxlBuffer arrives ───────────────────────────
@@ -190,7 +200,9 @@ export function SheetMusicView() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (apiRef.current.settings as any).display.stretchForce = stretchForceRef.current;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     if (doc?.musicXml) {
       scoreLoaded.current = false;
       apiRef.current.load(new TextEncoder().encode(sanitizeMusicXml(doc.musicXml)));
@@ -211,7 +223,15 @@ export function SheetMusicView() {
     : "radial-gradient(ellipse at 50% 100%, rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)";
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-auto" style={{ background: scrollBg, minHeight: 0, borderTop: "1px solid var(--color-notes-border)" }}>
+    <div
+      ref={scrollRef}
+      className="flex-1 overflow-auto"
+      style={{
+        background: scrollBg,
+        minHeight: 0,
+        borderTop: "1px solid var(--color-notes-border)",
+      }}
+    >
       {/*
         Page-width wrapper — centres the score and caps it at ~A4 screen width
         (900 px).  On wide monitors this creates margins on both sides so the
@@ -220,18 +240,15 @@ export function SheetMusicView() {
         key-signature badge stays anchored inside the content column.
       */}
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "8px 16px", position: "relative" }}>
-        <div
-          ref={containerRef}
-          className={invertSheet ? "sheet-dark-invert" : ""}
-        />
+        <div ref={containerRef} className={invertSheet ? "sheet-dark-invert" : ""} />
 
         {settings.showKeySignature && doc?.keySignature && settings.layoutMode !== "all" && (
           <div
             className="absolute top-2 right-4 z-10 pointer-events-none text-xs px-2 py-0.5 rounded"
             style={{
               background: keepWhite ? "#f5f7fb" : "var(--color-surface-2)",
-              border:     `1px solid ${keepWhite ? "#dde1ea" : "var(--color-border)"}`,
-              color:      keepWhite ? "#64748b"  : "var(--color-text-muted)",
+              border: `1px solid ${keepWhite ? "#dde1ea" : "var(--color-border)"}`,
+              color: keepWhite ? "#64748b" : "var(--color-text-muted)",
               letterSpacing: "0.03em",
             }}
           >
@@ -253,30 +270,30 @@ const AT_PPQ = 960;
 
 function secondsToTick(targetSec: number, tempoMap: TempoEvent[], ppq: number): number {
   if (!tempoMap.length) return Math.round(targetSec * 2 * AT_PPQ);
-  let atTick = 0;         // accumulated output in AlphaTab 960-PPQ ticks
+  let atTick = 0; // accumulated output in AlphaTab 960-PPQ ticks
   let remainingSec = targetSec;
 
   for (let i = 0; i < tempoMap.length; i++) {
-    const ev   = tempoMap[i];
+    const ev = tempoMap[i];
     const next = tempoMap[i + 1];
 
     // seconds per MIDI tick at this tempo
-    const secPerMidiTick   = 60 / (ev.bpm * ppq);
+    const secPerMidiTick = 60 / (ev.bpm * ppq);
     // AlphaTab ticks per MIDI tick (scale factor between file PPQ and AT PPQ)
-    const atPerMidi        = AT_PPQ / ppq;
+    const atPerMidi = AT_PPQ / ppq;
 
     if (next) {
-      const midiSpan = next.tick - ev.tick;   // segment length in MIDI ticks
-      const secSpan  = midiSpan * secPerMidiTick;
+      const midiSpan = next.tick - ev.tick; // segment length in MIDI ticks
+      const secSpan = midiSpan * secPerMidiTick;
       if (remainingSec <= secSpan) {
-        atTick += Math.round(remainingSec / secPerMidiTick * atPerMidi);
+        atTick += Math.round((remainingSec / secPerMidiTick) * atPerMidi);
         return atTick;
       }
       remainingSec -= secSpan;
-      atTick       += Math.round(midiSpan * atPerMidi);
+      atTick += Math.round(midiSpan * atPerMidi);
     } else {
       // Last segment - extends to end of piece
-      atTick += Math.round(remainingSec / secPerMidiTick * atPerMidi);
+      atTick += Math.round((remainingSec / secPerMidiTick) * atPerMidi);
       return atTick;
     }
   }

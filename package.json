@@ -13,14 +13,37 @@
   "bugs": {
     "url": "https://github.com/gigliof/bach-to-basics/issues"
   },
+  "type": "module",
   "scripts": {
     "dev": "concurrently --names \"frontend,backend\" --prefix-colors \"cyan,yellow\" \"pnpm --filter frontend dev\" \"cd backend && .venv/bin/uvicorn main:app --reload --port 8000\"",
     "build": "pnpm --filter frontend build",
     "test": "pnpm --filter frontend test",
-    "backend:setup": "cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
+    "backend:setup": "cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt",
+    "lint": "eslint frontend/src",
+    "lint:fix": "eslint frontend/src --fix",
+    "format": "prettier --write .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "frontend/src/**/*.{ts,tsx}": [
+      "eslint --fix --max-warnings 0",
+      "prettier --write"
+    ],
+    "**/*.{json,md,yml,yaml,css}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
-    "concurrently": "^9.0.0"
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^9.0.0",
+    "eslint": "^10.3.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.2",
+    "prettier": "^3.8.3",
+    "typescript-eslint": "^8.59.2"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
