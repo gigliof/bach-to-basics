@@ -3,102 +3,114 @@
 /* ── Design tokens ─────────────────────────────────────────────────────────── */
 :root {
   /* Surfaces - full indigo palette */
-  --color-bg:             #1a1a2e;
-  --color-surface:        #1e1e38;
-  --color-surface-2:      #232348;
-  --color-surface-3:      #282858;
-  --color-border:         #2d2d55;
-  --color-border-subtle:  #232348;
+  --color-bg: #1a1a2e;
+  --color-surface: #1e1e38;
+  --color-surface-2: #232348;
+  --color-surface-3: #282858;
+  --color-border: #2d2d55;
+  --color-border-subtle: #232348;
 
   /* Accent */
-  --color-accent:         #9333ea;
-  --color-accent-hover:   #a855f7;
-  --color-accent-subtle:  rgba(147, 51, 234, 0.18);
+  --color-accent: #9333ea;
+  --color-accent-hover: #a855f7;
+  --color-accent-subtle: rgba(147, 51, 234, 0.18);
   --color-accent-subtle-border: rgba(147, 51, 234, 0.35);
-  --color-accent-text:    #c084fc;
+  --color-accent-text: #c084fc;
 
   /* Toggle switch inactive track */
   --color-toggle-off: #4a4f88;
 
   /* Text - muted bumped to #9ca3af for WCAG AA compliance on dark surfaces */
-  --color-text:           #e2e8f0;
-  --color-text-muted:     #9ca3af;
-  --color-text-dim:       #3d4070;
+  --color-text: #e2e8f0;
+  --color-text-muted: #9ca3af;
+  --color-text-dim: #3d4070;
 
   /* Notes canvas - slightly deeper than bg so the practice area reads as distinct */
-  --color-notes-bg:       #141428;
-  --color-notes-border:   #1f1f44;
+  --color-notes-bg: #141428;
+  --color-notes-border: #1f1f44;
 
   /* Hands */
-  --color-warning:               #f59e0b;
-  --color-warning-subtle:        rgba(245, 158, 11, 0.08);
-  --color-warning-border:        rgba(245, 158, 11, 0.22);
+  --color-warning: #f59e0b;
+  --color-warning-subtle: rgba(245, 158, 11, 0.08);
+  --color-warning-border: rgba(245, 158, 11, 0.22);
 
-  --color-left-hand:             #9333ea;
-  --color-left-hand-subtle:      rgba(147, 51, 234, 0.18);
+  --color-left-hand: #9333ea;
+  --color-left-hand-subtle: rgba(147, 51, 234, 0.18);
   --color-left-hand-subtle-border: rgba(147, 51, 234, 0.38);
-  --color-left-hand-text:        #c084fc;
-  --color-right-hand:            #22d3ee;
-  --color-right-hand-subtle:     rgba(34, 211, 238, 0.14);
+  --color-left-hand-text: #c084fc;
+  --color-right-hand: #22d3ee;
+  --color-right-hand-subtle: rgba(34, 211, 238, 0.14);
   --color-right-hand-subtle-border: rgba(34, 211, 238, 0.32);
-  --color-right-hand-text:       #22d3ee;
+  --color-right-hand-text: #22d3ee;
 }
 
 [data-theme="light"] {
   /* Surfaces */
-  --color-bg:             #ffffff;
-  --color-surface:        #ffffff;
-  --color-surface-2:      #f5f7fb;
-  --color-surface-3:      #eaecf4;
-  --color-border:         #dde1ea;
-  --color-border-subtle:  #eaecf4;
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #f5f7fb;
+  --color-surface-3: #eaecf4;
+  --color-border: #dde1ea;
+  --color-border-subtle: #eaecf4;
 
   /* Accent */
-  --color-accent:         #6366f1;
-  --color-accent-hover:   #4f46e5;
-  --color-accent-subtle:  rgba(99, 102, 241, 0.12);
-  --color-accent-subtle-border: rgba(99, 102, 241, 0.30);
-  --color-accent-text:    #4f46e5;
+  --color-accent: #5e61f0; /* was #6366f1, darkened to pass WCAG AA contrast */
+  --color-accent-hover: #4f46e5;
+  --color-accent-subtle: rgba(94, 97, 240, 0.12);
+  --color-accent-subtle-border: rgba(94, 97, 240, 0.3);
+  --color-accent-text: #4f46e5;
 
   /* Toggle switch inactive track */
   --color-toggle-off: #c1c9d6;
 
   /* Text */
-  --color-text:           #0f172a;
-  --color-text-muted:     #64748b;
-  --color-text-dim:       #94a3b8;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --color-text-dim: #94a3b8;
 
   /* Hands */
-  --color-warning:               #d97706;
-  --color-warning-subtle:        rgba(217, 119, 6, 0.08);
-  --color-warning-border:        rgba(217, 119, 6, 0.22);
+  --color-warning: #d97706;
+  --color-warning-subtle: rgba(217, 119, 6, 0.08);
+  --color-warning-border: rgba(217, 119, 6, 0.22);
 
-  --color-left-hand:             #3b82f6;
-  --color-left-hand-subtle:      rgba(59, 130, 246, 0.12);
-  --color-left-hand-subtle-border: rgba(59, 130, 246, 0.30);
-  --color-left-hand-text:        #1d4ed8;
-  --color-right-hand:            #ef4444;
-  --color-right-hand-subtle:     rgba(239, 68, 68, 0.10);
+  --color-left-hand: #3b82f6;
+  --color-left-hand-subtle: rgba(59, 130, 246, 0.12);
+  --color-left-hand-subtle-border: rgba(59, 130, 246, 0.3);
+  --color-left-hand-text: #1d4ed8;
+  --color-right-hand: #ef4444;
+  --color-right-hand-subtle: rgba(239, 68, 68, 0.1);
   --color-right-hand-subtle-border: rgba(239, 68, 68, 0.28);
-  --color-right-hand-text:       #dc2626;
+  --color-right-hand-text: #dc2626;
 
   /* Notes canvas - cooler, slightly darker than chrome to create a
      "stage vs UI" separation that mirrors what dark mode does with
      #141428 content vs #1E1E38 chrome. #EEF1FA has the same blue-indigo
      undertone as the dark palette and reads as white at a glance while
      still being visibly distinct from the #FFFFFF header/transport. */
-  --color-notes-bg:       #EEF1FA;
-  --color-notes-border:   #D4D9EE;
+  --color-notes-bg: #eef1fa;
+  --color-notes-border: #d4d9ee;
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
+  font-family:
+    "Space Grotesk",
+    system-ui,
+    -apple-system,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
@@ -112,7 +124,10 @@ html, body, #root {
 }
 
 /* ── Inputs & selects ──────────────────────────────────────────────────────── */
-select, input[type="range"] { font-family: inherit; }
+select,
+input[type="range"] {
+  font-family: inherit;
+}
 
 select {
   appearance: none;
@@ -127,13 +142,25 @@ select {
 }
 
 /* ── Settings panel rows ───────────────────────────────────────────────────── */
-.settings-row:hover { background: var(--color-surface-2); }
+.settings-row:hover {
+  background: var(--color-surface-2);
+}
 
 /* ── Scrollbar ─────────────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-surface-3); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-border); }
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-3);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border);
+}
 
 /* ── Range slider - fully custom ───────────────────────────────────────────── */
 /* Remove native appearance so our pseudo-element CSS actually takes effect.
@@ -156,8 +183,10 @@ input[type="range"]::-webkit-slider-thumb {
   background: var(--color-accent);
   cursor: pointer;
   margin-top: -5.5px; /* center on 3px track: -(14-3)/2 */
-  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
-  transition: background 0.12s, box-shadow 0.12s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transition:
+    background 0.12s,
+    box-shadow 0.12s;
 }
 input[type="range"]:hover::-webkit-slider-thumb {
   background: var(--color-accent-hover);
@@ -183,7 +212,7 @@ input[type="range"]::-moz-range-thumb {
   background: var(--color-accent);
   border: none;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 input[type="range"]:hover::-moz-range-thumb {
   background: var(--color-accent-hover);
@@ -217,13 +246,21 @@ input[type="range"]::-moz-range-progress {
   color: var(--color-text-muted);
   border: 1px solid var(--color-border);
   cursor: pointer;
-  transition: background 0.12s, opacity 0.12s;
+  transition:
+    background 0.12s,
+    opacity 0.12s;
   flex-shrink: 0;
   font-size: 12px;
   font-family: inherit;
 }
-.t-btn:hover:not(:disabled) { background: var(--color-surface-3); color: var(--color-text); }
-.t-btn:disabled { opacity: 0.55; cursor: default; }
+.t-btn:hover:not(:disabled) {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+}
+.t-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
 
 /* Primary play/pause button - circular, accent-colored */
 .t-btn.primary {
@@ -242,10 +279,16 @@ input[type="range"]::-moz-range-progress {
   box-shadow: 0 0 24px rgba(147, 51, 234, 0.65);
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* ── AlphaTab host ─────────────────────────────────────────────────────────── */
-.at-surface svg { display: block; }
+.at-surface svg {
+  display: block;
+}
 
 /* ── AlphaTab playback cursor ─────────────────────────────────────────────── */
 /* Beat cursor - thin accent-colored vertical bar following playhead */

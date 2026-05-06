@@ -134,7 +134,7 @@ All backend settings come from environment variables. Copy `.env.example` to `.e
 | -------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ALLOWED_ORIGINS`          | `http://localhost:5173` | Comma-separated list of allowed CORS origins                                                                                                  |
 | `BACKEND_API_KEY`          | _(unset = open)_        | When set, all requests must include `X-API-Key: <value>`                                                                                      |
-| `REQUIRE_AUTH`             | _(unset)_               | Set to `1` to make the server refuse to start if `BACKEND_API_KEY` is not configured — useful for preventing accidental open deployments      |
+| `REQUIRE_AUTH`             | _(unset)_               | Set to `1` to make the server refuse to start if `BACKEND_API_KEY` is not configured - useful for preventing accidental open deployments      |
 | `RATE_LIMIT_PER_MIN`       | `60`                    | Max requests per IP per minute. `0` disables it                                                                                               |
 | `HEAVY_RATE_LIMIT_PER_MIN` | `10`                    | Stricter limit applied to expensive endpoints (`/omr/`, `/youtube/`)                                                                          |
 | `TRUSTED_PROXY_IPS`        | _(unset)_               | Comma-separated IPs of trusted reverse proxies. When set, the real client IP is read from `X-Forwarded-For` instead of the connection address |

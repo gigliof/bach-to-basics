@@ -12,27 +12,34 @@ import { midiToPitch, keySignatureToLabel } from "@bach-to-basics/shared";
 import { syncEngine } from "../engine/SyncEngine";
 
 const TAB_LABELS: Record<LayoutMode, string> = {
-  piano:   "Piano",
+  piano: "Piano",
   falling: "Notes",
-  sheet:   "Sheet",
-  all:     "All",
+  sheet: "Sheet",
+  all: "All",
 };
 
 const TAB_TITLES: Record<LayoutMode, string> = {
-  piano:   "Show only the piano keyboard view",
+  piano: "Show only the piano keyboard view",
   falling: "Show only the falling notes view",
-  sheet:   "Show only the sheet music view",
-  all:     "Show all views at once",
+  sheet: "Show only the sheet music view",
+  all: "Show all views at once",
 };
 
 export function PracticeView() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const {
-    loadMidiFile, loadMusicXmlFile, loadPdfFile,
-    settings, updateSettings,
-    status, play, pause, seek,
-    loadError, clearLoadError,
+    loadMidiFile,
+    loadMusicXmlFile,
+    loadPdfFile,
+    settings,
+    updateSettings,
+    status,
+    play,
+    pause,
+    seek,
+    loadError,
+    clearLoadError,
     document: doc,
     isLoadingDocument,
   } = useAppStore();
@@ -85,17 +92,23 @@ export function PracticeView() {
     return () => window.removeEventListener("keydown", handler);
   }, [seek]);
 
-  const loadFile = useCallback((file: File) => {
-    if (file.name.match(/\.midi?$/i))     loadMidiFile(file);
-    else if (file.name.match(/\.mxl?$/i)) loadMusicXmlFile(file);
-    else if (file.name.match(/\.pdf$/i))  loadPdfFile(file);
-  }, [loadMidiFile, loadMusicXmlFile, loadPdfFile]);
+  const loadFile = useCallback(
+    (file: File) => {
+      if (file.name.match(/\.midi?$/i)) loadMidiFile(file);
+      else if (file.name.match(/\.mxl?$/i)) loadMusicXmlFile(file);
+      else if (file.name.match(/\.pdf$/i)) loadPdfFile(file);
+    },
+    [loadMidiFile, loadMusicXmlFile, loadPdfFile]
+  );
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) loadFile(file);
-  }, [loadFile]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) loadFile(file);
+    },
+    [loadFile]
+  );
 
   const { layoutMode } = settings;
   const setLayout = (mode: LayoutMode) => updateSettings({ layoutMode: mode });
@@ -130,14 +143,14 @@ export function PracticeView() {
           rel="noopener noreferrer"
           className="flex items-center gap-2 shrink-0"
           style={{ textDecoration: "none" }}
-          aria-label="Bach to Basics on GitHub"
         >
           <div
             role="img"
             aria-hidden="true"
             className="flex items-center justify-center shrink-0 select-none"
             style={{
-              width: 32, height: 32,
+              width: 32,
+              height: 32,
               background: "linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)",
               borderRadius: 8,
               boxShadow: "0 3px 10px rgba(147,51,234,0.45)",
@@ -146,10 +159,15 @@ export function PracticeView() {
             <PianoKeysIcon />
           </div>
           {/* Typographic pun: "Bach" and "Basics" bold, "to" muted */}
-          <span style={{ fontSize: 15, whiteSpace: "nowrap", letterSpacing: "-0.3px", lineHeight: 1 }}>
+          <span
+            style={{ fontSize: 15, whiteSpace: "nowrap", letterSpacing: "-0.3px", lineHeight: 1 }}
+          >
             <span style={{ fontWeight: 700, color: "var(--color-text)" }}>Bach</span>
-            <span style={{ fontWeight: 400, color: "var(--color-text-muted)", margin: "0 3px" }}>to</span>
+            <span style={{ fontWeight: 400, color: "var(--color-text-muted)", margin: "0 3px" }}>
+              to
+            </span>
             <span style={{ fontWeight: 700, color: "var(--color-text)" }}>Basics</span>
+            <span className="sr-only"> on GitHub</span>
           </span>
         </a>
 
@@ -160,7 +178,12 @@ export function PracticeView() {
         >
           <div
             className="flex items-center"
-            style={{ padding: 3, background: "var(--color-surface-2)", borderRadius: 999, border: "1px solid var(--color-border)" }}
+            style={{
+              padding: 3,
+              background: "var(--color-surface-2)",
+              borderRadius: 999,
+              border: "1px solid var(--color-border)",
+            }}
           >
             {(["piano", "falling", "sheet", "all"] as LayoutMode[]).map((mode) => (
               <button
@@ -175,8 +198,8 @@ export function PracticeView() {
                   borderRadius: 999,
                   border: "none",
                   background: layoutMode === mode ? "var(--color-accent)" : "transparent",
-                  color:      layoutMode === mode ? "#ffffff" : "var(--color-text-muted)",
-                  boxShadow:  layoutMode === mode ? "0 0 12px rgba(147,51,234,0.35)" : "none",
+                  color: layoutMode === mode ? "#ffffff" : "var(--color-text-muted)",
+                  boxShadow: layoutMode === mode ? "0 0 12px rgba(147,51,234,0.35)" : "none",
                   cursor: "pointer",
                 }}
               >
@@ -194,7 +217,13 @@ export function PracticeView() {
             title={settings.theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             aria-label={settings.theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             className="flex items-center justify-center rounded transition-colors shrink-0"
-            style={{ width: 30, height: 30, background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}
+            style={{
+              width: 30,
+              height: 30,
+              background: "var(--color-surface-2)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text-muted)",
+            }}
           >
             {settings.theme === "dark" ? <SunIcon /> : <MoonIcon />}
           </button>
@@ -203,7 +232,13 @@ export function PracticeView() {
             title="Settings"
             aria-label="Open settings"
             className="flex items-center justify-center rounded transition-colors shrink-0"
-            style={{ width: 30, height: 30, background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}
+            style={{
+              width: 30,
+              height: 30,
+              background: "var(--color-surface-2)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text-muted)",
+            }}
           >
             <GearIcon />
           </button>
@@ -211,7 +246,7 @@ export function PracticeView() {
       </header>
 
       {/* ── Main content - layout-aware ────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden min-h-0 relative">
+      <main className="flex flex-1 overflow-hidden min-h-0 relative">
         {layoutMode === "piano" && (
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <PianoModeBackground />
@@ -244,12 +279,10 @@ export function PracticeView() {
             </div>
           </>
         )}
-      </div>
+      </main>
 
       {/* ── Empty state overlay ────────────────────────────────────────────── */}
-      {!doc && !isLoadingDocument && (
-        <EmptyState onImport={loadFile} />
-      )}
+      {!doc && !isLoadingDocument && <EmptyState onImport={loadFile} />}
 
       {/* ── Error toast ────────────────────────────────────────────────────── */}
       {loadError && <ErrorToast message={loadError} onDismiss={clearLoadError} />}
@@ -262,7 +295,6 @@ export function PracticeView() {
 
       {/* ── Settings panel (managed here, gear is in header) ───────────────── */}
       <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-
     </div>
   );
 }
@@ -290,11 +322,15 @@ function EmptyState({ onImport }: { onImport: (file: File) => void }) {
       {/* Illustration */}
       <div
         style={{
-          width: 72, height: 72,
+          width: 72,
+          height: 72,
           borderRadius: 18,
-          background: "linear-gradient(135deg, rgba(147,51,234,0.25) 0%, rgba(147,51,234,0.10) 100%), var(--color-notes-bg)",
+          background:
+            "linear-gradient(135deg, rgba(147,51,234,0.25) 0%, rgba(147,51,234,0.10) 100%), var(--color-notes-bg)",
           border: "1px solid rgba(147,51,234,0.25)",
-          display: "flex", alignItems: "center", justifyContent: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           color: "var(--color-accent-text)",
         }}
       >
@@ -315,20 +351,29 @@ function EmptyState({ onImport }: { onImport: (file: File) => void }) {
         onClick={() => fileInputRef.current?.click()}
         style={{
           pointerEvents: "all",
-          display: "flex", alignItems: "center", gap: 8,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
           padding: "11px 28px",
           background: "var(--color-accent)",
           color: "#fff",
           border: "none",
           borderRadius: 10,
-          fontSize: 14, fontWeight: 600,
+          fontSize: 14,
+          fontWeight: 600,
           cursor: "pointer",
           boxShadow: "0 0 24px rgba(147,51,234,0.45)",
           fontFamily: "inherit",
           transition: "all 0.15s",
         }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 34px rgba(147,51,234,0.6)"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = ""; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 24px rgba(147,51,234,0.45)"; }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
+          (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 34px rgba(147,51,234,0.6)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.transform = "";
+          (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 24px rgba(147,51,234,0.45)";
+        }}
       >
         <UploadIconLg />
         Import a file
@@ -343,7 +388,11 @@ function EmptyState({ onImport }: { onImport: (file: File) => void }) {
         type="file"
         accept=".mid,.midi,.xml,.mxl,.pdf"
         className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) onImport(f); e.target.value = ""; }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onImport(f);
+          e.target.value = "";
+        }}
       />
     </div>
   );
@@ -351,7 +400,7 @@ function EmptyState({ onImport }: { onImport: (file: File) => void }) {
 
 const UploadIconLg = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>
+    <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z" />
   </svg>
 );
 
@@ -359,12 +408,12 @@ const UploadIconLg = () => (
 // Mirrors the grid drawn by FallingNotesRenderer so the piano-only view has the
 // same dark background + black-key lanes + octave separator lines.
 
-const MIDI_MIN_BG = 21;   // A0
-const MIDI_MAX_BG = 108;  // C8
+const MIDI_MIN_BG = 21; // A0
+const MIDI_MAX_BG = 108; // C8
 
 /** Precompute whiteKeyIndex (cumulative white-key counter per MIDI note). */
 function buildWhiteKeyIndex() {
-  const isBlk = (m: number) => [1,3,6,8,10].includes(m % 12);
+  const isBlk = (m: number) => [1, 3, 6, 8, 10].includes(m % 12);
   const idx = new Array<number>(MIDI_MAX_BG + 1).fill(0);
   let wi = 0;
   for (let m = MIDI_MIN_BG; m <= MIDI_MAX_BG; m++) {
@@ -381,7 +430,7 @@ function drawPianoGrid(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  const isBlk = (m: number) => [1,3,6,8,10].includes(m % 12);
+  const isBlk = (m: number) => [1, 3, 6, 8, 10].includes(m % 12);
   const wW = width / TOTAL_WHITE_BG;
 
   // Clear to transparent - the CSS background on the parent div provides the colour.
@@ -398,37 +447,40 @@ function drawPianoGrid(canvas: HTMLCanvasElement) {
 }
 
 function PianoModeBackground() {
-  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { settings } = useAppStore();
 
   // Reusable draw callback
-  const redraw = useMemo(() => () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    drawPianoGrid(canvas);
-  }, []);
+  const redraw = useMemo(
+    () => () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      drawPianoGrid(canvas);
+    },
+    []
+  );
 
   useEffect(() => {
     const container = containerRef.current;
-    const canvas    = canvasRef.current;
+    const canvas = canvasRef.current;
     if (!container || !canvas) return;
 
     const ro = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      canvas.width  = Math.round(width);
+      canvas.width = Math.round(width);
       canvas.height = Math.round(height);
       if (settings.showGrid) redraw();
     });
     ro.observe(container);
 
     // Initial size
-    canvas.width  = container.clientWidth;
+    canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
     if (settings.showGrid) redraw();
 
     return () => ro.disconnect();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [redraw]);
 
   // Redraw when showGrid toggles
@@ -449,15 +501,12 @@ function PianoModeBackground() {
       className="flex-1 relative"
       style={{
         minHeight: 0,
-        background: "radial-gradient(ellipse at 50% 100%, rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)",
+        background:
+          "radial-gradient(ellipse at 50% 100%, rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)",
         borderTop: "1px solid var(--color-notes-border)",
       }}
     >
-      <canvas
-        ref={canvasRef}
-        style={{ display: "block", width: "100%", height: "100%" }}
-      />
-
+      <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />
     </div>
   );
 }
@@ -484,30 +533,67 @@ function StatusBar() {
 
   const bpm = doc?.tempoMap[0]?.bpm ?? null;
   const effectiveBpm = bpm ? Math.round(bpm * tempoMultiplier) : null;
-  const fmt = (s: number) => `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+  const fmt = (s: number) =>
+    `${Math.floor(s / 60)}:${Math.floor(s % 60)
+      .toString()
+      .padStart(2, "0")}`;
   const keySig = doc?.keySignature ? keySignatureToLabel(doc.keySignature) : null;
   const isActive = status === "playing" || status === "paused";
 
   return (
     <div
       className="flex items-center gap-3 border-t flex-shrink-0 min-w-0"
-      style={{ height: 26, background: "var(--color-surface)", borderColor: "var(--color-border-subtle)", fontSize: 11, color: "var(--color-text-muted)", fontVariantNumeric: "tabular-nums", paddingLeft: 10, paddingRight: 12 }}
+      style={{
+        height: 26,
+        background: "var(--color-surface)",
+        borderColor: "var(--color-border-subtle)",
+        fontSize: 11,
+        color: "var(--color-text-muted)",
+        fontVariantNumeric: "tabular-nums",
+        paddingLeft: 10,
+        paddingRight: 12,
+      }}
     >
       {doc ? (
         <>
           {isActive && (
-            <span style={{ color: "var(--color-accent)", fontWeight: 600, flexShrink: 0 }}>Playing</span>
+            <span style={{ color: "var(--color-accent)", fontWeight: 600, flexShrink: 0 }}>
+              Playing
+            </span>
           )}
-          <span className="truncate" style={{ minWidth: 0 }}>{doc.title}</span>
-          {keySig && <><Dot /><span className="shrink-0">{keySig}</span></>}
-          {effectiveBpm !== null && <><Dot /><span className="shrink-0">{effectiveBpm} BPM</span></>}
-          {lastNote && <><Dot /><span className="shrink-0" style={{ color: "var(--color-accent)" }}>{lastNote}</span></>}
+          <span className="truncate" style={{ minWidth: 0 }}>
+            {doc.title}
+          </span>
+          {keySig && (
+            <>
+              <Dot />
+              <span className="shrink-0">{keySig}</span>
+            </>
+          )}
+          {effectiveBpm !== null && (
+            <>
+              <Dot />
+              <span className="shrink-0">{effectiveBpm} BPM</span>
+            </>
+          )}
+          {lastNote && (
+            <>
+              <Dot />
+              <span className="shrink-0" style={{ color: "var(--color-accent)" }}>
+                {lastNote}
+              </span>
+            </>
+          )}
         </>
       ) : (
         <span>No file loaded - drag &amp; drop or click ↑ Import</span>
       )}
       <div className="flex-1 min-w-0" />
-      {doc && <span className="shrink-0">{fmt(currentSeconds)} / {fmt(doc.totalDuration)}</span>}
+      {doc && (
+        <span className="shrink-0">
+          {fmt(currentSeconds)} / {fmt(doc.totalDuration)}
+        </span>
+      )}
     </div>
   );
 }
@@ -531,7 +617,7 @@ function ErrorToast({ message, onDismiss }: { message: string; onDismiss: () => 
       role="alert"
       style={{
         position: "fixed",
-        bottom: 68,   // above the transport bar
+        bottom: 68, // above the transport bar
         left: "50%",
         transform: "translateX(-50%)",
         zIndex: 2000,
@@ -554,7 +640,10 @@ function ErrorToast({ message, onDismiss }: { message: string; onDismiss: () => 
       <span style={{ color: "#f87171", fontSize: 16, lineHeight: 1.2, flexShrink: 0 }}>⚠</span>
       <span style={{ flex: 1, wordBreak: "break-word" }}>
         {message.split("\n").map((line, i) => (
-          <span key={i}>{line}{i < message.split("\n").length - 1 && <br />}</span>
+          <span key={i}>
+            {line}
+            {i < message.split("\n").length - 1 && <br />}
+          </span>
         ))}
       </span>
       <button
@@ -581,7 +670,7 @@ function ErrorToast({ message, onDismiss }: { message: string; onDismiss: () => 
 
 const MusicNoteIcon = () => (
   <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
   </svg>
 );
 
@@ -589,31 +678,31 @@ const MusicNoteIcon = () => (
 const PianoKeysIcon = () => (
   <svg width="18" height="14" viewBox="0 0 17 14" fill="none" aria-hidden="true">
     {/* White keys */}
-    <rect x="0"    y="0" width="3"   height="13" rx="0.5" fill="white" fillOpacity="0.95"/>
-    <rect x="3.5"  y="0" width="3"   height="13" rx="0.5" fill="white" fillOpacity="0.95"/>
-    <rect x="7"    y="0" width="3"   height="13" rx="0.5" fill="white" fillOpacity="0.95"/>
-    <rect x="10.5" y="0" width="3"   height="13" rx="0.5" fill="white" fillOpacity="0.95"/>
-    <rect x="14"   y="0" width="3"   height="13" rx="0.5" fill="white" fillOpacity="0.95"/>
+    <rect x="0" y="0" width="3" height="13" rx="0.5" fill="white" fillOpacity="0.95" />
+    <rect x="3.5" y="0" width="3" height="13" rx="0.5" fill="white" fillOpacity="0.95" />
+    <rect x="7" y="0" width="3" height="13" rx="0.5" fill="white" fillOpacity="0.95" />
+    <rect x="10.5" y="0" width="3" height="13" rx="0.5" fill="white" fillOpacity="0.95" />
+    <rect x="14" y="0" width="3" height="13" rx="0.5" fill="white" fillOpacity="0.95" />
     {/* Black keys */}
-    <rect x="2"    y="0" width="2.5" height="8.5" rx="0.5" fill="rgba(0,0,0,0.5)"/>
-    <rect x="5.5"  y="0" width="2.5" height="8.5" rx="0.5" fill="rgba(0,0,0,0.5)"/>
-    <rect x="12.5" y="0" width="2.5" height="8.5" rx="0.5" fill="rgba(0,0,0,0.5)"/>
+    <rect x="2" y="0" width="2.5" height="8.5" rx="0.5" fill="rgba(0,0,0,0.5)" />
+    <rect x="5.5" y="0" width="2.5" height="8.5" rx="0.5" fill="rgba(0,0,0,0.5)" />
+    <rect x="12.5" y="0" width="2.5" height="8.5" rx="0.5" fill="rgba(0,0,0,0.5)" />
   </svg>
 );
 
 const SunIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2v-2H2v2zm18 0h2v-2h-2v2zM11 2v2h2V2h-2zm0 18v2h2v-2h-2zM5.64 6.35 4.22 4.93a1 1 0 0 0-1.41 1.41l1.41 1.42 1.42-1.41zM18.36 17.65l1.42 1.41a1 1 0 0 0 1.41-1.41l-1.41-1.42-1.42 1.42zM5.64 17.66l-1.42 1.41a1 1 0 0 1-1.41-1.41l1.41-1.42 1.42 1.42zM19.78 4.93l-1.42 1.42-1.41-1.42 1.42-1.41a1 1 0 0 1 1.41 1.41z"/>
+    <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2v-2H2v2zm18 0h2v-2h-2v2zM11 2v2h2V2h-2zm0 18v2h2v-2h-2zM5.64 6.35 4.22 4.93a1 1 0 0 0-1.41 1.41l1.41 1.42 1.42-1.41zM18.36 17.65l1.42 1.41a1 1 0 0 0 1.41-1.41l-1.41-1.42-1.42 1.42zM5.64 17.66l-1.42 1.41a1 1 0 0 1-1.41-1.41l1.41-1.42 1.42 1.42zM19.78 4.93l-1.42 1.42-1.41-1.42 1.42-1.41a1 1 0 0 1 1.41 1.41z" />
   </svg>
 );
 const MoonIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/>
+    <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z" />
   </svg>
 );
 const GearIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="12" cy="12" r="3"/>
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </svg>
 );

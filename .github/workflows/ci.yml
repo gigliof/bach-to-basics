@@ -8,7 +8,7 @@ on:
 
 jobs:
   frontend:
-    name: Frontend — type-check & test
+    name: Frontend - type-check & test
     runs-on: ubuntu-latest
 
     steps:

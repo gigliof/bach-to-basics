@@ -2,7 +2,7 @@
 
 ## Scope
 
-Bach to Basics handles no user accounts, no personal data, and no financial information. It is a local music practice tool — the main attack surface is **file processing** (MIDI, MusicXML, PDF uploads) and the **FastAPI backend** when self-hosted.
+Bach to Basics handles no user accounts, no personal data, and no financial information. It is a local music practice tool - the main attack surface is **file processing** (MIDI, MusicXML, PDF uploads) and the **FastAPI backend** when self-hosted.
 
 ## What to report
 
@@ -23,6 +23,6 @@ Use **GitHub's private vulnerability reporting**:
 
 1. Go to the [Security tab](https://github.com/gigliof/bach-to-basics/security) of this repo
 2. Click **"Report a vulnerability"**
-3. Fill in the details — steps to reproduce, impact, any suggested fix
+3. Fill in the details - steps to reproduce, impact, any suggested fix
 
 You'll get a response within a few days. There's no formal embargo policy given the nature of this project, but please give a reasonable heads-up before going public.

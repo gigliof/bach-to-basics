@@ -233,7 +233,7 @@ export function SheetMusicView() {
       }}
     >
       {/*
-        Page-width wrapper — centres the score and caps it at ~A4 screen width
+        Page-width wrapper - centres the score and caps it at ~A4 screen width
         (900 px).  On wide monitors this creates margins on both sides so the
         score never looks like a stretched banner; on narrow screens it fills
         the full width just like before.  position:relative is needed so the

@@ -1,38 +1,68 @@
 import { useAppStore } from "../../store/useAppStore";
-import type { NoteFilter, ColorTheme, CustomColors, NoteLabelMode, InstrumentId, ImpactStyle } from "../../store/useAppStore";
+import type {
+  NoteFilter,
+  ColorTheme,
+  CustomColors,
+  NoteLabelMode,
+  InstrumentId,
+  ImpactStyle,
+} from "../../store/useAppStore";
 import { COLOR_PRESET_VALUES, INSTRUMENT_LABELS } from "../../store/useAppStore";
-import { useState } from "react";
+import { useState, createContext, useContext } from "react";
+
+/** Provides the Row's label to child Toggle buttons for aria-label. */
+const RowLabelContext = createContext<string>("");
 
 const NOTE_FILTER_OPTIONS: { value: NoteFilter; label: string; title: string }[] = [
-  { value: "all",    label: "All",     title: "Show all notes" },
-  { value: "white",  label: "Natural", title: "Show only natural (white) key notes" },
-  { value: "black",  label: "Sharps",  title: "Show only sharp/flat (black) key notes" },
-  { value: "c_only", label: "C only",  title: "Show only C notes" },
+  { value: "all", label: "All", title: "Show all notes" },
+  { value: "white", label: "Natural", title: "Show only natural (white) key notes" },
+  { value: "black", label: "Sharps", title: "Show only sharp/flat (black) key notes" },
+  { value: "c_only", label: "C only", title: "Show only C notes" },
 ];
 
 const COLOR_THEME_LABELS: Record<ColorTheme, string> = {
-  violet:  "Violet",
+  violet: "Violet",
   classic: "Classic",
-  ocean:   "Ocean",
-  forest:  "Forest",
+  ocean: "Ocean",
+  forest: "Forest",
   cascade: "Cascade",
-  custom:  "Custom",
+  custom: "Custom",
 };
 
 const NOTE_LABEL_OPTIONS: { value: NoteLabelMode; label: string; title: string }[] = [
-  { value: "none",   label: "None",    title: "No note name labels" },
-  { value: "c_only", label: "C only",  title: "Label C notes with octave number (C4, C5…)" },
-  { value: "white",  label: "Natural", title: "Label all natural (white) keys" },
-  { value: "black",  label: "Sharps",  title: "Label all sharp/flat (black) keys" },
-  { value: "all",    label: "All",     title: "Label every key" },
+  { value: "none", label: "None", title: "No note name labels" },
+  { value: "c_only", label: "C only", title: "Label C notes with octave number (C4, C5…)" },
+  { value: "white", label: "Natural", title: "Label all natural (white) keys" },
+  { value: "black", label: "Sharps", title: "Label all sharp/flat (black) keys" },
+  { value: "all", label: "All", title: "Label every key" },
 ];
 
 const INSTRUMENT_OPTIONS: { value: InstrumentId; label: string; title: string }[] = [
-  { value: "grand",       label: INSTRUMENT_LABELS.grand,       title: "Splendid Grand Piano - high-quality sampled concert grand" },
-  { value: "bright",      label: INSTRUMENT_LABELS.bright,      title: "Bright Acoustic Piano - brighter attack and tone" },
-  { value: "electric",    label: INSTRUMENT_LABELS.electric,    title: "CP80 Electric Grand Piano - vintage Yamaha electric grand" },
-  { value: "harpsichord", label: INSTRUMENT_LABELS.harpsichord, title: "Harpsichord - plucked strings, no velocity dynamic" },
-  { value: "honkytonk",   label: INSTRUMENT_LABELS.honkytonk,   title: "Honky-Tonk Piano - slightly out-of-tune saloon upright" },
+  {
+    value: "grand",
+    label: INSTRUMENT_LABELS.grand,
+    title: "Splendid Grand Piano - high-quality sampled concert grand",
+  },
+  {
+    value: "bright",
+    label: INSTRUMENT_LABELS.bright,
+    title: "Bright Acoustic Piano - brighter attack and tone",
+  },
+  {
+    value: "electric",
+    label: INSTRUMENT_LABELS.electric,
+    title: "CP80 Electric Grand Piano - vintage Yamaha electric grand",
+  },
+  {
+    value: "harpsichord",
+    label: INSTRUMENT_LABELS.harpsichord,
+    title: "Harpsichord - plucked strings, no velocity dynamic",
+  },
+  {
+    value: "honkytonk",
+    label: INSTRUMENT_LABELS.honkytonk,
+    title: "Honky-Tonk Piano - slightly out-of-tune saloon upright",
+  },
 ];
 
 function formatTranspose(n: number): string {
@@ -47,15 +77,19 @@ function Toggle({
   active,
   onClick,
   title,
+  "aria-label": ariaLabel,
 }: {
   active: boolean;
   onClick: () => void;
   title?: string;
+  "aria-label"?: string;
 }) {
+  const rowLabel = useContext(RowLabelContext);
   return (
     <button
       role="switch"
       aria-checked={active}
+      aria-label={ariaLabel ?? rowLabel ?? title}
       onClick={onClick}
       title={title}
       style={{
@@ -115,48 +149,75 @@ function Row({
   stacked?: boolean;
   children: React.ReactNode;
 }) {
+  const contextLabel = title ?? label;
+
   if (stacked) {
     return (
-      <div
-        className="settings-row"
-        style={{ paddingTop: 7, paddingBottom: 9, borderRadius: 4 }}
-      >
-        <div title={title} style={{ marginBottom: 6 }}>
-          <span style={{ fontSize: 13.5, color: "var(--color-text)", display: "block", fontWeight: 400 }}>
-            {label}
-          </span>
-          {sublabel && (
-            <span style={{ fontSize: 11, color: "var(--color-text-muted)", display: "block", marginTop: 2 }}>
-              {sublabel}
+      <RowLabelContext.Provider value={contextLabel}>
+        <div className="settings-row" style={{ paddingTop: 7, paddingBottom: 9, borderRadius: 4 }}>
+          <div title={title} style={{ marginBottom: 6 }}>
+            <span
+              style={{
+                fontSize: 13.5,
+                color: "var(--color-text)",
+                display: "block",
+                fontWeight: 400,
+              }}
+            >
+              {label}
             </span>
-          )}
+            {sublabel && (
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "var(--color-text-muted)",
+                  display: "block",
+                  marginTop: 2,
+                }}
+              >
+                {sublabel}
+              </span>
+            )}
+          </div>
+          <div>{children}</div>
         </div>
-        <div>
-          {children}
-        </div>
-      </div>
+      </RowLabelContext.Provider>
     );
   }
 
   return (
-    <div
-      className="settings-row flex items-center justify-between gap-4"
-      style={{ paddingTop: 7, paddingBottom: 7, borderRadius: 4 }}
-    >
-      <div className="shrink-0" title={title}>
-        <span style={{ fontSize: 13.5, color: "var(--color-text)", display: "block", fontWeight: 400 }}>
-          {label}
-        </span>
-        {sublabel && (
-          <span style={{ fontSize: 10, color: "var(--color-text-muted)", display: "block", marginTop: 2 }}>
-            {sublabel}
+    <RowLabelContext.Provider value={contextLabel}>
+      <div
+        className="settings-row flex items-center justify-between gap-4"
+        style={{ paddingTop: 7, paddingBottom: 7, borderRadius: 4 }}
+      >
+        <div className="shrink-0" title={title}>
+          <span
+            style={{
+              fontSize: 13.5,
+              color: "var(--color-text)",
+              display: "block",
+              fontWeight: 400,
+            }}
+          >
+            {label}
           </span>
-        )}
+          {sublabel && (
+            <span
+              style={{
+                fontSize: 10,
+                color: "var(--color-text-muted)",
+                display: "block",
+                marginTop: 2,
+              }}
+            >
+              {sublabel}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">{children}</div>
       </div>
-      <div className="flex items-center gap-1.5 flex-wrap justify-end">
-        {children}
-      </div>
-    </div>
+    </RowLabelContext.Provider>
   );
 }
 
@@ -242,9 +303,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       >
         {title}
       </div>
-      <div style={{ paddingLeft: 20, paddingRight: 20 }}>
-        {children}
-      </div>
+      <div style={{ paddingLeft: 20, paddingRight: 20 }}>{children}</div>
     </div>
   );
 }
@@ -290,7 +349,6 @@ function ResetButton() {
 
   return (
     <div style={{ padding: "16px 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
-
       {/* Support link */}
       <a
         href="https://ko-fi.com/gigliof"
@@ -330,11 +388,9 @@ function ResetButton() {
           border: confirmed
             ? "1px solid rgba(239,68,68,0.55)"
             : hovered
-            ? "1px solid rgba(239,68,68,0.35)"
-            : "1px solid var(--color-border)",
-          background: confirmed
-            ? "rgba(239,68,68,0.08)"
-            : "var(--color-surface-2)",
+              ? "1px solid rgba(239,68,68,0.35)"
+              : "1px solid var(--color-border)",
+          background: confirmed ? "rgba(239,68,68,0.08)" : "var(--color-surface-2)",
           color: confirmed || hovered ? "#f87171" : "var(--color-text-muted)",
           fontSize: 12,
           fontWeight: 500,
@@ -346,14 +402,24 @@ function ResetButton() {
         {confirmed ? "Click again to confirm reset" : "Reset to defaults"}
       </button>
 
-      {/* Logo mark — links to GitHub repo */}
+      {/* Logo mark - links to GitHub repo */}
       <div style={{ display: "flex", justifyContent: "center", paddingTop: 8, paddingBottom: 4 }}>
-        <a href="https://github.com/gigliof/bach-to-basics" target="_blank" rel="noopener noreferrer" style={{ lineHeight: 0 }}>
+        <a
+          href="https://github.com/gigliof/bach-to-basics"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ lineHeight: 0 }}
+        >
           <img
             src="/logo.png"
             alt="Bach to Basics on GitHub"
             draggable={false}
-            style={{ width: 72, height: "auto", opacity: isDark ? 0.35 : 0.18, filter: isDark ? "invert(1)" : "none" }}
+            style={{
+              width: 72,
+              height: "auto",
+              opacity: isDark ? 0.35 : 0.18,
+              filter: isDark ? "invert(1)" : "none",
+            }}
           />
         </a>
       </div>
@@ -363,13 +429,7 @@ function ResetButton() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function SettingsPanel({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+export function SettingsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { settings, updateSettings } = useAppStore();
 
   // Computes the inline style for range inputs.
@@ -435,8 +495,11 @@ export function SettingsPanel({
           <button
             onClick={onClose}
             style={{
-              width: 28, height: 28,
-              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               background: "var(--color-surface-2)",
               border: "1px solid var(--color-border)",
               borderRadius: 7,
@@ -454,10 +517,8 @@ export function SettingsPanel({
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto" style={{ overflowX: "hidden" }}>
-
           {/* ── Appearance ─────────────────────────────────────────────────── */}
           <Section title="Appearance">
-
             {/* Color theme - swatch grid */}
             <div style={{ padding: "10px 0 4px" }}>
               <span style={{ fontSize: 13.5, color: "var(--color-text)", fontWeight: 400 }}>
@@ -498,30 +559,51 @@ export function SettingsPanel({
                       <div style={{ display: "flex", gap: 5 }}>
                         {(
                           [
-                            { color: colors.leftHand,  label: "L" },
+                            { color: colors.leftHand, label: "L" },
                             { color: colors.rightHand, label: "R" },
                           ] as { color: string; label: string }[]
                         ).map(({ color, label }) => (
-                          <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                            <span style={{
-                              width: 11, height: 11, borderRadius: "50%",
-                              background: color,
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                              display: "block",
-                            }} />
-                            <span style={{ fontSize: 8, fontWeight: 700, color: "var(--color-text-muted)", lineHeight: 1 }}>
+                          <div
+                            key={label}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 2,
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: 11,
+                                height: 11,
+                                borderRadius: "50%",
+                                background: color,
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                                display: "block",
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontSize: 8,
+                                fontWeight: 700,
+                                color: "var(--color-text-muted)",
+                                lineHeight: 1,
+                              }}
+                            >
                               {label}
                             </span>
                           </div>
                         ))}
                       </div>
-                      <span style={{
-                        fontSize: 10,
-                        fontWeight: active ? 700 : 500,
-                        color: active ? "var(--color-accent-text)" : "var(--color-text-muted)",
-                        letterSpacing: "0.02em",
-                        lineHeight: 1,
-                      }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: active ? 700 : 500,
+                          color: active ? "var(--color-accent-text)" : "var(--color-text-muted)",
+                          letterSpacing: "0.02em",
+                          lineHeight: 1,
+                        }}
+                      >
                         {COLOR_THEME_LABELS[theme]}
                       </span>
                     </button>
@@ -539,12 +621,14 @@ export function SettingsPanel({
                   gap: 8,
                   padding: "7px 10px",
                   borderRadius: 8,
-                  border: settings.colorTheme === "custom"
-                    ? "2px solid var(--color-accent)"
-                    : "2px solid var(--color-border)",
-                  background: settings.colorTheme === "custom"
-                    ? "var(--color-accent-subtle)"
-                    : "var(--color-surface-2)",
+                  border:
+                    settings.colorTheme === "custom"
+                      ? "2px solid var(--color-accent)"
+                      : "2px solid var(--color-border)",
+                  background:
+                    settings.colorTheme === "custom"
+                      ? "var(--color-accent-subtle)"
+                      : "var(--color-surface-2)",
                   cursor: "pointer",
                   width: "100%",
                   transition: "border-color 0.15s, background 0.15s",
@@ -552,58 +636,91 @@ export function SettingsPanel({
               >
                 {/* Live dots with L / R / ? labels */}
                 <div style={{ display: "flex", gap: 5 }}>
-                  {(
-                    [
-                      { key: "leftHand"  as const, label: "L" },
-                      { key: "rightHand" as const, label: "R" },
-                      { key: "unknown"   as const, label: "?" },
-                    ]
-                  ).map(({ key, label }) => (
-                    <div key={key} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                      <span style={{
-                        width: 10, height: 10, borderRadius: "50%",
-                        background: settings.customColors[key],
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                        display: "block",
-                      }} />
-                      <span style={{ fontSize: 8, fontWeight: 700, color: "var(--color-text-muted)", lineHeight: 1 }}>
+                  {[
+                    { key: "leftHand" as const, label: "L" },
+                    { key: "rightHand" as const, label: "R" },
+                    { key: "unknown" as const, label: "?" },
+                  ].map(({ key, label }) => (
+                    <div
+                      key={key}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 2,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: settings.customColors[key],
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                          display: "block",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 8,
+                          fontWeight: 700,
+                          color: "var(--color-text-muted)",
+                          lineHeight: 1,
+                        }}
+                      >
                         {label}
                       </span>
                     </div>
                   ))}
                 </div>
-                <span style={{
-                  fontSize: 12,
-                  fontWeight: settings.colorTheme === "custom" ? 700 : 500,
-                  color: settings.colorTheme === "custom" ? "var(--color-accent-text)" : "var(--color-text-muted)",
-                }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: settings.colorTheme === "custom" ? 700 : 500,
+                    color:
+                      settings.colorTheme === "custom"
+                        ? "var(--color-accent-text)"
+                        : "var(--color-text-muted)",
+                  }}
+                >
                   Custom
                 </span>
-                <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginLeft: "auto" }}>
+                <span
+                  style={{ fontSize: 11, color: "var(--color-text-muted)", marginLeft: "auto" }}
+                >
                   pick your own colors
                 </span>
               </button>
 
               {/* Custom color pickers - shown inline when custom is active */}
               {settings.colorTheme === "custom" && (
-                <div style={{
-                  display: "flex",
-                  gap: 12,
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  background: "var(--color-surface-2)",
-                  border: "1px solid var(--color-border)",
-                }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    background: "var(--color-surface-2)",
+                    border: "1px solid var(--color-border)",
+                  }}
+                >
                   {(
                     [
-                      { key: "leftHand"  as keyof CustomColors, label: "Left hand" },
+                      { key: "leftHand" as keyof CustomColors, label: "Left hand" },
                       { key: "rightHand" as keyof CustomColors, label: "Right hand" },
-                      { key: "unknown"   as keyof CustomColors, label: "Other" },
+                      { key: "unknown" as keyof CustomColors, label: "Other" },
                     ] as { key: keyof CustomColors; label: string }[]
                   ).map(({ key, label }) => (
                     <label
                       key={key}
-                      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", flex: 1 }}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 4,
+                        cursor: "pointer",
+                        flex: 1,
+                      }}
                     >
                       <input
                         type="color"
@@ -614,7 +731,8 @@ export function SettingsPanel({
                           })
                         }
                         style={{
-                          width: 36, height: 28,
+                          width: 36,
+                          height: 28,
                           padding: 2,
                           border: "1px solid var(--color-border)",
                           borderRadius: 6,
@@ -622,7 +740,13 @@ export function SettingsPanel({
                           cursor: "pointer",
                         }}
                       />
-                      <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: "var(--color-text-muted)",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {label}
                       </span>
                     </label>
@@ -632,20 +756,29 @@ export function SettingsPanel({
 
               {/* Differentiate hands - toggle + live L/R legend */}
               {(() => {
-                const activeColors = settings.colorTheme === "custom"
-                  ? settings.customColors
-                  : COLOR_PRESET_VALUES[settings.colorTheme as Exclude<ColorTheme, "custom">];
+                const activeColors =
+                  settings.colorTheme === "custom"
+                    ? settings.customColors
+                    : COLOR_PRESET_VALUES[settings.colorTheme as Exclude<ColorTheme, "custom">];
                 return (
-                  <div style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                    padding: "4px 10px 6px",
-                    borderRadius: 8,
-                    background: "var(--color-surface-2)",
-                    border: "1px solid var(--color-border)",
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                      padding: "4px 10px 6px",
+                      borderRadius: 8,
+                      background: "var(--color-surface-2)",
+                      border: "1px solid var(--color-border)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
                       <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                         <span style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 500 }}>
                           Differentiate hands
@@ -657,23 +790,34 @@ export function SettingsPanel({
                       <Toggle
                         active={settings.showHandColors}
                         onClick={() => updateSettings({ showHandColors: !settings.showHandColors })}
+                        aria-label="Differentiate hands"
                       />
                     </div>
                     {settings.showHandColors && (
                       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                         {(
                           [
-                            { color: activeColors.leftHand,  label: "Left hand" },
+                            { color: activeColors.leftHand, label: "Left hand" },
                             { color: activeColors.rightHand, label: "Right hand" },
                           ] as { color: string; label: string }[]
                         ).map(({ color, label }) => (
-                          <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                            <span style={{
-                              width: 10, height: 10, borderRadius: "50%",
-                              background: color, display: "inline-block",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
-                            }} />
-                            <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{label}</span>
+                          <div
+                            key={label}
+                            style={{ display: "flex", alignItems: "center", gap: 5 }}
+                          >
+                            <span
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                background: color,
+                                display: "inline-block",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                              }}
+                            />
+                            <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+                              {label}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -711,7 +855,14 @@ export function SettingsPanel({
                       midColor: "#fff8e7",
                       btmColor: "#e8e0c8",
                     },
-                  ] as { value: "white" | "ivory"; label: string; title: string; topColor: string; midColor: string; btmColor: string }[]
+                  ] as {
+                    value: "white" | "ivory";
+                    label: string;
+                    title: string;
+                    topColor: string;
+                    midColor: string;
+                    btmColor: string;
+                  }[]
                 ).map(({ value, label, title, topColor, midColor, btmColor }) => {
                   const active = settings.pianoTheme === value;
                   return (
@@ -740,20 +891,24 @@ export function SettingsPanel({
                       }}
                     >
                       {/* Mini piano key */}
-                      <div style={{
-                        width: 20,
-                        height: 34,
-                        borderRadius: "0 0 3px 3px",
-                        background: `linear-gradient(to bottom, ${topColor} 0%, ${midColor} 8%, ${midColor} 88%, ${btmColor} 100%)`,
-                        border: "1px solid rgba(0,0,0,0.18)",
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.18)",
-                      }} />
-                      <span style={{
-                        fontSize: 11,
-                        fontWeight: active ? 700 : 400,
-                        color: active ? "var(--color-accent-text)" : "var(--color-text-muted)",
-                        lineHeight: 1,
-                      }}>
+                      <div
+                        style={{
+                          width: 20,
+                          height: 34,
+                          borderRadius: "0 0 3px 3px",
+                          background: `linear-gradient(to bottom, ${topColor} 0%, ${midColor} 8%, ${midColor} 88%, ${btmColor} 100%)`,
+                          border: "1px solid rgba(0,0,0,0.18)",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.18)",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: active ? 700 : 400,
+                          color: active ? "var(--color-accent-text)" : "var(--color-text-muted)",
+                          lineHeight: 1,
+                        }}
+                      >
                         {label}
                       </span>
                     </button>
@@ -853,7 +1008,15 @@ export function SettingsPanel({
                   style={rangeStyle(settings.minNoteHeight, 4, 24)}
                 />
                 <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>24</span>
-                <span className="text-xs tabular-nums" style={{ color: "var(--color-text)", marginLeft: 2, minWidth: 36, textAlign: "right" }}>
+                <span
+                  className="text-xs tabular-nums"
+                  style={{
+                    color: "var(--color-text)",
+                    marginLeft: 2,
+                    minWidth: 36,
+                    textAlign: "right",
+                  }}
+                >
                   {settings.minNoteHeight}px
                 </span>
               </div>
@@ -880,7 +1043,15 @@ export function SettingsPanel({
                   style={rangeStyle(settings.noteCornerRadius, 0, 12)}
                 />
                 <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>12</span>
-                <span className="text-xs tabular-nums" style={{ color: "var(--color-text)", marginLeft: 2, minWidth: 36, textAlign: "right" }}>
+                <span
+                  className="text-xs tabular-nums"
+                  style={{
+                    color: "var(--color-text)",
+                    marginLeft: 2,
+                    minWidth: 36,
+                    textAlign: "right",
+                  }}
+                >
                   {settings.noteCornerRadius}px
                 </span>
               </div>
@@ -904,15 +1075,15 @@ export function SettingsPanel({
             >
               <Toggle
                 active={settings.sheetMusicWhiteBackground}
-                onClick={() => updateSettings({ sheetMusicWhiteBackground: !settings.sheetMusicWhiteBackground })}
+                onClick={() =>
+                  updateSettings({ sheetMusicWhiteBackground: !settings.sheetMusicWhiteBackground })
+                }
               />
             </Row>
-
           </Section>
 
           {/* ── Overlays ───────────────────────────────────────────────────── */}
           <Section title="Overlays">
-
             <Row
               label="Measure numbers"
               sublabel="on the left edge of falling notes"
@@ -966,21 +1137,35 @@ export function SettingsPanel({
               <BtnGroup
                 aria-label="Impact effect style"
                 options={[
-                  { value: "off"   as ImpactStyle, label: "Off",   title: "No visual effect on note impact" },
-                  { value: "bloom" as ImpactStyle, label: "Bloom",  title: "Soft expanding ring (default)" },
-                  { value: "side"  as ImpactStyle, label: "Side",   title: "Particles burst left & right from note edges at impact" },
-                  { value: "trail" as ImpactStyle, label: "Trail",  title: "Sparkles drift off the bar sides as it falls" },
+                  {
+                    value: "off" as ImpactStyle,
+                    label: "Off",
+                    title: "No visual effect on note impact",
+                  },
+                  {
+                    value: "bloom" as ImpactStyle,
+                    label: "Bloom",
+                    title: "Soft expanding ring (default)",
+                  },
+                  {
+                    value: "side" as ImpactStyle,
+                    label: "Side",
+                    title: "Particles burst left & right from note edges at impact",
+                  },
+                  {
+                    value: "trail" as ImpactStyle,
+                    label: "Trail",
+                    title: "Sparkles drift off the bar sides as it falls",
+                  },
                 ]}
                 value={settings.impactStyle}
                 onChange={(v) => updateSettings({ impactStyle: v as ImpactStyle })}
               />
             </Row>
-
           </Section>
 
           {/* ── Playback ───────────────────────────────────────────────────── */}
           <Section title="Playback">
-
             <Row
               label="Note window"
               sublabel="seconds of notes visible at once"
@@ -988,7 +1173,11 @@ export function SettingsPanel({
               stacked
             >
               <div className="flex items-center gap-1.5">
-                <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>2s</span>
+                <span
+                  style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}
+                >
+                  2s
+                </span>
                 <input
                   type="range"
                   min={2}
@@ -1001,8 +1190,20 @@ export function SettingsPanel({
                   className="flex-1"
                   style={rangeStyle(settings.viewportSeconds, 2, 10)}
                 />
-                <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>10s</span>
-                <span className="text-xs tabular-nums" style={{ color: "var(--color-text)", marginLeft: 2, minWidth: 36, textAlign: "right" }}>
+                <span
+                  style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}
+                >
+                  10s
+                </span>
+                <span
+                  className="text-xs tabular-nums"
+                  style={{
+                    color: "var(--color-text)",
+                    marginLeft: 2,
+                    minWidth: 36,
+                    textAlign: "right",
+                  }}
+                >
                   {settings.viewportSeconds}s
                 </span>
               </div>
@@ -1015,7 +1216,11 @@ export function SettingsPanel({
               stacked
             >
               <div className="flex items-center gap-1.5">
-                <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>-6♭</span>
+                <span
+                  style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}
+                >
+                  -6♭
+                </span>
                 <input
                   type="range"
                   min={-6}
@@ -1028,8 +1233,22 @@ export function SettingsPanel({
                   className="flex-1"
                   style={rangeStyle(settings.transposeSemitones, -6, 6)}
                 />
-                <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>+6♯</span>
-                <span className="text-xs tabular-nums" style={{ color: "var(--color-text)", marginLeft: 2, minWidth: 52, textAlign: "right", flexShrink: 0, whiteSpace: "nowrap" }}>
+                <span
+                  style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}
+                >
+                  +6♯
+                </span>
+                <span
+                  className="text-xs tabular-nums"
+                  style={{
+                    color: "var(--color-text)",
+                    marginLeft: 2,
+                    minWidth: 52,
+                    textAlign: "right",
+                    flexShrink: 0,
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {formatTranspose(settings.transposeSemitones)}
                 </span>
               </div>
@@ -1042,7 +1261,11 @@ export function SettingsPanel({
               stacked
             >
               <div className="flex items-center gap-1.5">
-                <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>-200</span>
+                <span
+                  style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}
+                >
+                  -200
+                </span>
                 <input
                   type="range"
                   min={-200}
@@ -1055,9 +1278,22 @@ export function SettingsPanel({
                   className="flex-1"
                   style={rangeStyle(settings.renderOffset, -200, 200)}
                 />
-                <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>+200</span>
-                <span className="text-xs tabular-nums" style={{ color: "var(--color-text)", marginLeft: 2, minWidth: 40, textAlign: "right" }}>
-                  {settings.renderOffset > 0 ? `+${settings.renderOffset}` : settings.renderOffset}ms
+                <span
+                  style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}
+                >
+                  +200
+                </span>
+                <span
+                  className="text-xs tabular-nums"
+                  style={{
+                    color: "var(--color-text)",
+                    marginLeft: 2,
+                    minWidth: 40,
+                    textAlign: "right",
+                  }}
+                >
+                  {settings.renderOffset > 0 ? `+${settings.renderOffset}` : settings.renderOffset}
+                  ms
                 </span>
               </div>
             </Row>
@@ -1099,9 +1335,23 @@ export function SettingsPanel({
               <BtnGroup
                 aria-label="Wait mode hand"
                 options={[
-                  { value: "left"  as const, label: "Left",  title: "Pause only for left hand notes - right hand plays through automatically" },
-                  { value: "both"  as const, label: "Both",  title: "Pause for both hands (default)" },
-                  { value: "right" as const, label: "Right", title: "Pause only for right hand notes - left hand plays through automatically" },
+                  {
+                    value: "left" as const,
+                    label: "Left",
+                    title:
+                      "Pause only for left hand notes - right hand plays through automatically",
+                  },
+                  {
+                    value: "both" as const,
+                    label: "Both",
+                    title: "Pause for both hands (default)",
+                  },
+                  {
+                    value: "right" as const,
+                    label: "Right",
+                    title:
+                      "Pause only for right hand notes - left hand plays through automatically",
+                  },
                 ]}
                 value={settings.waitForHand}
                 onChange={(v) => updateSettings({ waitForHand: v as "left" | "right" | "both" })}
@@ -1118,7 +1368,14 @@ export function SettingsPanel({
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {(["left", "right"] as const).map((hand) => (
                   <div key={hand} className="flex items-center gap-2">
-                    <span style={{ fontSize: 11, color: "var(--color-text-muted)", width: 28, flexShrink: 0 }}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "var(--color-text-muted)",
+                        width: 28,
+                        flexShrink: 0,
+                      }}
+                    >
                       {hand === "left" ? "Left" : "Right"}
                     </span>
                     <input
@@ -1127,13 +1384,25 @@ export function SettingsPanel({
                       max={1}
                       step={0.05}
                       value={settings.handVolume[hand]}
-                      onChange={(e) => updateSettings({ handVolume: { ...settings.handVolume, [hand]: Number(e.target.value) } })}
+                      onChange={(e) =>
+                        updateSettings({
+                          handVolume: { ...settings.handVolume, [hand]: Number(e.target.value) },
+                        })
+                      }
                       aria-label={`${hand === "left" ? "Left" : "Right"} hand volume`}
                       aria-valuetext={`${Math.round(settings.handVolume[hand] * 100)}%`}
                       className="flex-1"
                       style={rangeStyle(settings.handVolume[hand], 0, 1)}
                     />
-                    <span className="text-xs tabular-nums" style={{ color: "var(--color-text)", width: 32, textAlign: "right", flexShrink: 0 }}>
+                    <span
+                      className="text-xs tabular-nums"
+                      style={{
+                        color: "var(--color-text)",
+                        width: 32,
+                        textAlign: "right",
+                        flexShrink: 0,
+                      }}
+                    >
                       {Math.round(settings.handVolume[hand] * 100)}%
                     </span>
                   </div>
@@ -1151,7 +1420,7 @@ export function SettingsPanel({
                 aria-label="Count-in bars"
                 options={[
                   { value: 0 as const, label: "0 bars", title: "No count-in - start immediately" },
-                  { value: 1 as const, label: "1 bar",  title: "One bar count-in" },
+                  { value: 1 as const, label: "1 bar", title: "One bar count-in" },
                   { value: 2 as const, label: "2 bars", title: "Two bars count-in" },
                 ]}
                 value={settings.countInBars}
@@ -1169,7 +1438,10 @@ export function SettingsPanel({
                 active={settings.speedTrainer.enabled}
                 onClick={() =>
                   updateSettings({
-                    speedTrainer: { ...settings.speedTrainer, enabled: !settings.speedTrainer.enabled },
+                    speedTrainer: {
+                      ...settings.speedTrainer,
+                      enabled: !settings.speedTrainer.enabled,
+                    },
                   })
                 }
               />
@@ -1185,7 +1457,15 @@ export function SettingsPanel({
                   stacked
                 >
                   <div className="flex items-center gap-1.5">
-                    <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>25%</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "var(--color-text-muted)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      25%
+                    </span>
                     <input
                       type="range"
                       min={25}
@@ -1194,7 +1474,10 @@ export function SettingsPanel({
                       value={settings.speedTrainer.startPct}
                       onChange={(e) =>
                         updateSettings({
-                          speedTrainer: { ...settings.speedTrainer, startPct: Number(e.target.value) },
+                          speedTrainer: {
+                            ...settings.speedTrainer,
+                            startPct: Number(e.target.value),
+                          },
                         })
                       }
                       aria-label="Speed trainer start percentage"
@@ -1202,8 +1485,24 @@ export function SettingsPanel({
                       className="flex-1"
                       style={rangeStyle(settings.speedTrainer.startPct, 25, 100)}
                     />
-                    <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>100%</span>
-                    <span className="text-xs tabular-nums" style={{ color: "var(--color-text)", marginLeft: 2, minWidth: 36, textAlign: "right" }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "var(--color-text-muted)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      100%
+                    </span>
+                    <span
+                      className="text-xs tabular-nums"
+                      style={{
+                        color: "var(--color-text)",
+                        marginLeft: 2,
+                        minWidth: 36,
+                        textAlign: "right",
+                      }}
+                    >
                       {settings.speedTrainer.startPct}%
                     </span>
                   </div>
@@ -1216,7 +1515,15 @@ export function SettingsPanel({
                   stacked
                 >
                   <div className="flex items-center gap-1.5">
-                    <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>50%</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "var(--color-text-muted)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      50%
+                    </span>
                     <input
                       type="range"
                       min={50}
@@ -1225,7 +1532,10 @@ export function SettingsPanel({
                       value={settings.speedTrainer.endPct}
                       onChange={(e) =>
                         updateSettings({
-                          speedTrainer: { ...settings.speedTrainer, endPct: Number(e.target.value) },
+                          speedTrainer: {
+                            ...settings.speedTrainer,
+                            endPct: Number(e.target.value),
+                          },
                         })
                       }
                       aria-label="Speed trainer end percentage"
@@ -1233,8 +1543,24 @@ export function SettingsPanel({
                       className="flex-1"
                       style={rangeStyle(settings.speedTrainer.endPct, 50, 200)}
                     />
-                    <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>200%</span>
-                    <span className="text-xs tabular-nums" style={{ color: "var(--color-text)", marginLeft: 2, minWidth: 36, textAlign: "right" }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "var(--color-text-muted)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      200%
+                    </span>
+                    <span
+                      className="text-xs tabular-nums"
+                      style={{
+                        color: "var(--color-text)",
+                        marginLeft: 2,
+                        minWidth: 36,
+                        textAlign: "right",
+                      }}
+                    >
                       {settings.speedTrainer.endPct}%
                     </span>
                   </div>
@@ -1247,7 +1573,15 @@ export function SettingsPanel({
                   stacked
                 >
                   <div className="flex items-center gap-1.5">
-                    <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>1%</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "var(--color-text-muted)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      1%
+                    </span>
                     <input
                       type="range"
                       min={1}
@@ -1256,7 +1590,10 @@ export function SettingsPanel({
                       value={settings.speedTrainer.stepPct}
                       onChange={(e) =>
                         updateSettings({
-                          speedTrainer: { ...settings.speedTrainer, stepPct: Number(e.target.value) },
+                          speedTrainer: {
+                            ...settings.speedTrainer,
+                            stepPct: Number(e.target.value),
+                          },
                         })
                       }
                       aria-label="Speed trainer step percentage"
@@ -1264,20 +1601,34 @@ export function SettingsPanel({
                       className="flex-1"
                       style={rangeStyle(settings.speedTrainer.stepPct, 1, 20)}
                     />
-                    <span style={{ fontSize: 10, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>20%</span>
-                    <span className="text-xs tabular-nums" style={{ color: "var(--color-text)", marginLeft: 2, minWidth: 36, textAlign: "right" }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "var(--color-text-muted)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      20%
+                    </span>
+                    <span
+                      className="text-xs tabular-nums"
+                      style={{
+                        color: "var(--color-text)",
+                        marginLeft: 2,
+                        minWidth: 36,
+                        textAlign: "right",
+                      }}
+                    >
                       {settings.speedTrainer.stepPct}%
                     </span>
                   </div>
                 </Row>
               </>
             )}
-
           </Section>
 
           {/* ── Reset to defaults ─────────────────────────────────────────── */}
           <ResetButton />
-
         </div>
       </div>
     </>
@@ -1287,12 +1638,21 @@ export function SettingsPanel({
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
 const MetronomeIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     {/* Trapezoid body - wider at base, tapers toward top */}
-    <path d="M5 21L9 3h6l4 18H5z"/>
+    <path d="M5 21L9 3h6l4 18H5z" />
     {/* Pendulum rod - angled to suggest motion */}
-    <line x1="11" y1="21" x2="15" y2="3"/>
+    <line x1="11" y1="21" x2="15" y2="3" />
     {/* Weight - small circle riding the rod at mid-height */}
-    <circle cx="13" cy="12" r="1.5"/>
+    <circle cx="13" cy="12" r="1.5" />
   </svg>
 );
