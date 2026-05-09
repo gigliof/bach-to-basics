@@ -23,25 +23,25 @@
   "dependencies": {
     "@bach-to-basics/shared": "workspace:*",
     "@coderline/alphatab": "^1.3.0",
-    "pixi.js": "^8.0.0",
-    "tone": "^15.0.4",
-    "smplr": "^0.14.0",
-    "webmidi": "^3.1.11",
     "@tonejs/midi": "^2.0.6",
     "mitt": "^3.0.1",
-    "zustand": "^5.0.0",
+    "pixi.js": "^8.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "smplr": "^0.14.0",
+    "tone": "^15.0.4",
+    "webmidi": "^3.1.11",
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "@vitest/ui": "^4.1.5",
+    "tailwindcss": "^4.0.0",
     "typescript": "~5.7.0",
     "vite": "^6.0.0",
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/vite": "^4.0.0",
-    "vitest": "^2.0.0",
-    "@vitest/ui": "^2.0.0"
+    "vitest": "^4.1.5"
   }
 }
