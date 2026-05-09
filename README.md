@@ -8,6 +8,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/gigliof/bach-to-basics/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/gigliof/bach-to-basics/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/gigliof/bach-to-basics/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-7c3aed"></a>
   <a href="https://github.com/gigliof/bach-to-basics/issues"><img alt="Issues" src="https://img.shields.io/github/issues/gigliof/bach-to-basics"></a>
   <a href="https://ko-fi.com/gigliof"><img alt="Support on Ko-fi" src="https://img.shields.io/badge/support-ko--fi-FF5E5B?logo=ko-fi&logoColor=white"></a>
