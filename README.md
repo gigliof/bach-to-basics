@@ -16,11 +16,11 @@
 
 A browser-based piano practice tool. Drop in a **MIDI file**, a **MusicXML score**, or even a **PDF of sheet music**. Bach to Basics turns it into synced views of falling notes, an interactive 88-key piano, and rendered sheet music, then layers on practice tools (A/B loop, speed trainer, wait mode, metronome, transpose) to help you learn the piece.
 
-![Bach to Basics demo](docs/demo.gif)
+[![Bach to Basics demo](docs/demo.gif)](https://raw.githubusercontent.com/gigliof/bach-to-basics/main/docs/demo.gif)
 
-| Sheet music                               | All views                             | Settings                                  |
-| ----------------------------------------- | ------------------------------------- | ----------------------------------------- |
-| ![Sheet music](docs/screenshot-sheet.png) | ![All views](docs/screenshot-all.png) | ![Settings](docs/screenshot-settings.png) |
+| Sheet music                                                                                                                          | All views                                                                                                                      | Settings                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| [![Sheet music](docs/screenshot-sheet.png)](https://raw.githubusercontent.com/gigliof/bach-to-basics/main/docs/screenshot-sheet.png) | [![All views](docs/screenshot-all.png)](https://raw.githubusercontent.com/gigliof/bach-to-basics/main/docs/screenshot-all.png) | [![Settings](docs/screenshot-settings.png)](https://raw.githubusercontent.com/gigliof/bach-to-basics/main/docs/screenshot-settings.png) |
 
 ## Features
 
@@ -100,7 +100,7 @@ That's it. Stop with `Ctrl+C` (or `docker compose down`).
 
 You'll need:
 
-- **Node.js** 20+ and **pnpm** (`npm i -g pnpm`)
+- **Node.js** 22+ and **pnpm** (`npm i -g pnpm`)
 - **Python** 3.11 or 3.12
 - **Java 17+**, only needed for PDF import via Audiveris
 
