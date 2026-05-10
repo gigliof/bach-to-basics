@@ -244,6 +244,9 @@ class NoteBar {
   private label: PIXI.Text;
   /** Whether this bar's label should be shown at all (text non-empty AND bar big enough). */
   private labelWanted = false;
+  /** Cached at configure() time so relabel() can recompute labelWanted without re-rendering the bar. */
+  private barWidth = 0;
+  private barHeight = 0;
   note: NoteEvent | null = null;
   active = false;
   impactFired = false;
@@ -283,6 +286,8 @@ class NoteBar {
     this.active = true;
     this.impactFired = false;
     this.baseColor = baseColor;
+    this.barWidth = barWidth;
+    this.barHeight = barHeight;
     this.container.visible = true;
     this.container.x = x;
     this.container.y = startY;
@@ -325,6 +330,13 @@ class NoteBar {
     this.label.visible = this.labelWanted;
   }
 
+  /** Update just the label text on an already-configured bar. Cheap: no re-rendering of bg. */
+  relabel(labelText: string) {
+    this.label.text = labelText;
+    this.labelWanted = labelText.length > 0 && this.barHeight > 6 && this.barWidth > 7;
+    this.label.visible = this.labelWanted;
+  }
+
   /** Keep label clamped within the visible portion of the bar (for very tall notes). */
   updateLabelY(containerY: number, barHeight: number, viewportHeight: number) {
     if (!this.labelWanted) {
@@ -362,6 +374,7 @@ export interface FallingNotesOptions {
   height: number;
   viewportSeconds: number;
   fallingNotesLabelMode?: NoteLabelMode;
+  /** When true, append the assigned finger digit to each note bar's label */
   showFingering: boolean;
   showHandColors: boolean;
   useFlats: boolean;
@@ -983,8 +996,12 @@ export class FallingNotesRenderer {
       ("useFlats" in opts && opts.useFlats !== this.opts.useFlats) ||
       ("fallingNotesLabelMode" in opts &&
         opts.fallingNotesLabelMode !== this.opts.fallingNotesLabelMode) ||
-      ("showFingering" in opts && opts.showFingering !== this.opts.showFingering) ||
       ("showNoteOutline" in opts && opts.showNoteOutline !== this.opts.showNoteOutline);
+
+    // Fingering toggle is cheaper - re-label active bars in place rather than
+    // resetting (which would briefly clear all bars from the screen).
+    const fingeringChanged =
+      "showFingering" in opts && opts.showFingering !== this.opts.showFingering;
 
     Object.assign(this.opts, opts);
     if (!this._initialized) return;
@@ -993,6 +1010,10 @@ export class FallingNotesRenderer {
       for (const g of this.gradientCache.values()) g.destroy();
       this.gradientCache.clear();
       this.reset();
+    } else if (fingeringChanged) {
+      for (const [, bar] of this.active) {
+        if (bar.note) bar.relabel(this.noteLabel(bar.note));
+      }
     }
     if ("showGrid" in opts) this.gridLayer.visible = !!opts.showGrid;
     if ("impactStyle" in opts) {

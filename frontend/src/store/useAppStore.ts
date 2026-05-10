@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { syncEngine } from "../engine/SyncEngine";
 import bus from "../engine/EventBus";
-import type { MusicDocument, PlaybackStatus } from "@bach-to-basics/shared";
+import type { MusicDocument, PlaybackStatus, NoteEvent, Finger } from "@bach-to-basics/shared";
 import type { InstrumentId } from "../engine/AudioEngine";
 export { computeMeasureSeconds, keySignatureToLabel } from "@bach-to-basics/shared";
 export type { InstrumentId } from "../engine/AudioEngine";
@@ -28,17 +28,17 @@ export type ColorTheme = "violet" | "classic" | "ocean" | "forest" | "cascade" |
 
 /** Per-channel colors for the custom theme (hex strings, e.g. "#3b82f6"). */
 export interface CustomColors {
-  leftHand:  string;
+  leftHand: string;
   rightHand: string;
-  unknown:   string;
+  unknown: string;
 }
 
 /** Pre-built color values matching each named preset (used to seed the custom picker). */
 export const COLOR_PRESET_VALUES: Record<Exclude<ColorTheme, "custom">, CustomColors> = {
-  violet:  { leftHand: "#7c3aed", rightHand: "#f59e0b", unknown: "#a78bfa" }, // purple + amber
+  violet: { leftHand: "#7c3aed", rightHand: "#f59e0b", unknown: "#a78bfa" }, // purple + amber
   classic: { leftHand: "#2563eb", rightHand: "#dc2626", unknown: "#7c3aed" }, // blue + red
-  ocean:   { leftHand: "#0284c7", rightHand: "#f97316", unknown: "#0ea5e9" }, // blue + coral
-  forest:  { leftHand: "#16a34a", rightHand: "#a855f7", unknown: "#4ade80" }, // green + purple
+  ocean: { leftHand: "#0284c7", rightHand: "#f97316", unknown: "#0ea5e9" }, // blue + coral
+  forest: { leftHand: "#16a34a", rightHand: "#a855f7", unknown: "#4ade80" }, // green + purple
   cascade: { leftHand: "#9333ea", rightHand: "#22d3ee", unknown: "#a855f7" }, // purple + cyan
 };
 
@@ -46,15 +46,17 @@ export const COLOR_PRESET_VALUES: Record<Exclude<ColorTheme, "custom">, CustomCo
 export type NoteLabelMode = "none" | "c_only" | "white" | "black" | "all";
 
 export interface SpeedTrainerSettings {
-  enabled:    boolean;
-  startPct:   number;   // 0-100
-  endPct:     number;   // 0-100
-  stepPct:    number;   // increment per loop
-  currentPct: number;   // current ramp position
+  enabled: boolean;
+  startPct: number; // 0-100
+  endPct: number; // 0-100
+  stepPct: number; // increment per loop
+  currentPct: number; // current ramp position
 }
 
 export interface AppSettings {
   showFingering: boolean;
+  /** Also overlay finger digits on falling-note bars (default off - adds visual clutter) */
+  showFingeringOnNotes: boolean;
   showHandColors: boolean;
   useFlats: boolean;
   viewportSeconds: number; // FallingNotes lookahead window
@@ -68,49 +70,51 @@ export interface AppSettings {
   metronomeEnabled: boolean;
   // ── New settings ──────────────────────────────────────────────────────────
   /** Note labels on the piano keyboard */
-  noteLabelMode:            NoteLabelMode;
+  noteLabelMode: NoteLabelMode;
   /** Note labels on the falling notes bars */
-  fallingNotesLabelMode:    NoteLabelMode;
-  pianoTheme:          "white" | "ivory";
-  showGrid:            boolean;
-  showMeasureNums:     boolean;
-  showKeySignature:    boolean;
-  transposeSemitones:  number;  // -6..+6
-  speedTrainer:        SpeedTrainerSettings;
-  countInBars:         0 | 1 | 2;
+  fallingNotesLabelMode: NoteLabelMode;
+  pianoTheme: "white" | "ivory";
+  showGrid: boolean;
+  showMeasureNums: boolean;
+  showKeySignature: boolean;
+  transposeSemitones: number; // -6..+6
+  speedTrainer: SpeedTrainerSettings;
+  countInBars: 0 | 1 | 2;
   /** Which visual effect plays when a note reaches the hit line */
-  impactStyle:         ImpactStyle;
+  impactStyle: ImpactStyle;
   sheetMusicWhiteBackground: boolean;
   // ── MIDIano-inspired additions ────────────────────────────────────────────
   /** Scroll wheel on the falling notes canvas seeks playback position */
-  scrollToSeek:        boolean;
+  scrollToSeek: boolean;
   /** Minimum pixel height for note bars (prevents staccato notes becoming invisible) */
-  minNoteHeight:       number;   // 4-24
+  minNoteHeight: number; // 4-24
   /** Border-radius for note bar corners (0 = sharp, 12 = pill) */
-  noteCornerRadius:    number;   // 0-12
+  noteCornerRadius: number; // 0-12
   /** Draw faint horizontal lines at each beat and measure boundary */
-  showBeatLines:       boolean;
+  showBeatLines: boolean;
   /** Show sustain pedal (CC64) regions as semi-transparent bands */
-  showSustainPedal:    boolean;
+  showSustainPedal: boolean;
   /** Per-hand volume multiplier (0 = silent, 1 = full) */
-  handVolume:          { left: number; right: number };
+  handVolume: { left: number; right: number };
   /** Active instrument for audio playback */
-  instrument:          InstrumentId;
+  instrument: InstrumentId;
   /** Which hand(s) trigger wait-mode pauses ("both" = default, all hands) */
-  waitForHand:         "left" | "right" | "both";
+  waitForHand: "left" | "right" | "both";
   /** Draw a colored outline stroke around falling note bars */
-  showNoteOutline:     boolean;
+  showNoteOutline: boolean;
   // ── MIDIano live-app additions ────────────────────────────────────────────
   /** Shift audio scheduling by ±ms to compensate for audio interface latency (positive = play earlier) */
-  renderOffset:        number;   // -200..+200 ms
+  renderOffset: number; // -200..+200 ms
   /** Keep a ghost indicator for notes that have ended while sustain pedal is held */
-  showSustainedNotes:  boolean;
+  showSustainedNotes: boolean;
 }
 
 export interface AppState {
   // ── Document ─────────────────────────────────────────────────────────────
   document: MusicDocument | null;
   isLoadingDocument: boolean;
+  /** True while /fingering/generate is in flight */
+  isGeneratingFingering: boolean;
   loadError: string | null;
   /** Non-null during slow imports (e.g. OMR) to show a descriptive message */
   loadingMessage: string | null;
@@ -134,6 +138,7 @@ export interface AppState {
   loadMidiFile: (file: File) => Promise<void>;
   loadMusicXmlFile: (file: File) => Promise<void>;
   loadPdfFile: (file: File) => Promise<void>;
+  generateFingering: () => Promise<void>;
   play: () => void;
   pause: () => void;
   stop: () => void;
@@ -152,6 +157,7 @@ export interface AppState {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   showFingering: false,
+  showFingeringOnNotes: false,
   showHandColors: true,
   useFlats: false,
   viewportSeconds: 4.0,
@@ -164,31 +170,31 @@ export const DEFAULT_SETTINGS: AppSettings = {
   layoutMode: "falling",
   metronomeEnabled: false,
   // ── New defaults ──────────────────────────────────────────────────────────
-  noteLabelMode:            "c_only",
-  fallingNotesLabelMode:    "all",
-  pianoTheme:          "white",
-  showGrid:            false,
-  showMeasureNums:     true,
-  showKeySignature:    true,
-  transposeSemitones:  0,
+  noteLabelMode: "c_only",
+  fallingNotesLabelMode: "all",
+  pianoTheme: "white",
+  showGrid: false,
+  showMeasureNums: true,
+  showKeySignature: true,
+  transposeSemitones: 0,
   speedTrainer: { enabled: false, startPct: 60, endPct: 100, stepPct: 5, currentPct: 60 },
-  countInBars:         0,
-  impactStyle:         "bloom" as ImpactStyle,
+  countInBars: 0,
+  impactStyle: "bloom" as ImpactStyle,
   sheetMusicWhiteBackground: false,
   // ── MIDIano-inspired additions ────────────────────────────────────────────
-  scrollToSeek:        false,
-  minNoteHeight:       8,
-  noteCornerRadius:    4,
-  showBeatLines:       false,
-  showSustainPedal:    false,
-  handVolume:          { left: 1, right: 1 },
+  scrollToSeek: false,
+  minNoteHeight: 8,
+  noteCornerRadius: 4,
+  showBeatLines: false,
+  showSustainPedal: false,
+  handVolume: { left: 1, right: 1 },
   // ── "Consider later" additions ────────────────────────────────────────────
-  instrument:          "grand" as InstrumentId,
-  waitForHand:         "both" as "left" | "right" | "both",
-  showNoteOutline:     false,
+  instrument: "grand" as InstrumentId,
+  waitForHand: "both" as "left" | "right" | "both",
+  showNoteOutline: false,
   // ── MIDIano live-app additions ────────────────────────────────────────────
-  renderOffset:        0,
-  showSustainedNotes:  false,
+  renderOffset: 0,
+  showSustainedNotes: false,
 };
 
 export const useAppStore = create<AppState>((set, get) => {
@@ -218,6 +224,7 @@ export const useAppStore = create<AppState>((set, get) => {
   return {
     document: null,
     isLoadingDocument: false,
+    isGeneratingFingering: false,
     loadError: null,
     loadingMessage: null,
     status: "stopped",
@@ -280,7 +287,8 @@ export const useAppStore = create<AppState>((set, get) => {
 
         // Stub document - sheet music renders immediately via musicXml string
         const doc: import("@bach-to-basics/shared").MusicDocument = {
-          id, title,
+          id,
+          title,
           sourceType: "musicxml",
           musicXml,
           midiBuffer: null,
@@ -303,9 +311,10 @@ export const useAppStore = create<AppState>((set, get) => {
         // to UTF-8) with a .xml extension, so the backend gets clean MusicXML rather
         // than the ZIP container. This avoids cross-staff voice-duplication artefacts
         // that music21 can produce when it parses a compressed .mxl directly.
-        const xmlBytesForBackend = (musicXml && file.name.toLowerCase().endsWith(".mxl"))
-          ? new TextEncoder().encode(musicXml).buffer
-          : xmlBytes;
+        const xmlBytesForBackend =
+          musicXml && file.name.toLowerCase().endsWith(".mxl")
+            ? new TextEncoder().encode(musicXml).buffer
+            : xmlBytes;
         const filenameForBackend = file.name.toLowerCase().endsWith(".mxl")
           ? file.name.replace(/\.mxl$/i, ".xml")
           : file.name;
@@ -323,7 +332,11 @@ export const useAppStore = create<AppState>((set, get) => {
       const rawTitle = file.name.replace(/\.pdf$/i, "");
       const title = rawTitle.replace(/[\x00-\x1f\x7f/\\]/g, "").slice(0, 200) || "Untitled";
 
-      set({ isLoadingDocument: true, loadingMessage: "Reading sheet music\u2026", loadError: null });
+      set({
+        isLoadingDocument: true,
+        loadingMessage: "Reading sheet music\u2026",
+        loadError: null,
+      });
 
       try {
         const form = new FormData();
@@ -334,11 +347,11 @@ export const useAppStore = create<AppState>((set, get) => {
         const res = await fetch("/api/omr/pdf2midi", { method: "POST", body: form });
 
         if (!res.ok) {
-          const body = await res.json().catch(() => ({})) as { detail?: string };
+          const body = (await res.json().catch(() => ({}))) as { detail?: string };
           throw new Error(body.detail ?? `Server error ${res.status}`);
         }
 
-        const { musicxml, midi_b64 } = await res.json() as {
+        const { musicxml, midi_b64 } = (await res.json()) as {
           musicxml: string;
           midi_b64: string;
           filename: string;
@@ -361,11 +374,56 @@ export const useAppStore = create<AppState>((set, get) => {
 
         set({ document: { ...doc, midiBuffer: bufferForDoc } });
         await syncEngine.loadDocument({ ...doc, midiBuffer: bufferForDoc });
-
       } catch (err) {
         set({ loadError: String(err) });
       } finally {
         set({ isLoadingDocument: false, loadingMessage: null });
+      }
+    },
+
+    generateFingering: async () => {
+      const { document: doc } = get();
+      if (!doc?.musicXml) return;
+
+      set({ isGeneratingFingering: true, loadError: null });
+      try {
+        const res = await fetch("/api/fingering/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ musicxml: doc.musicXml }),
+        });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { detail?: string };
+          throw new Error(body.detail ?? `Server error ${res.status}`);
+        }
+        const { musicxml: annotatedXml } = (await res.json()) as { musicxml: string };
+
+        const updatedNotes = applyFingeringFromXml(doc.notes, annotatedXml);
+
+        // Guard: don't overwrite if the user loaded a different document while we waited
+        const { document: currentDoc } = get();
+        if (currentDoc?.id === doc.id) {
+          // Note: we deliberately do NOT replace `musicXml` with the annotated
+          // version - fingerings are a piano-keyboard-only overlay.
+          const updatedDoc = {
+            ...currentDoc,
+            notes: updatedNotes,
+            fingeringVersion: "auto" as const,
+          };
+          set((s) => ({
+            document: updatedDoc,
+            settings: { ...s.settings, showFingering: true },
+          }));
+          // Hand SyncEngine the updated notes WITHOUT resetting playback -
+          // notes already scheduled within the lookahead window keep their
+          // old (no-finger) values, but everything beyond it picks up the
+          // new fingerings. This lets the user keep playing through Generate.
+          syncEngine.updateDocumentNotes(updatedNotes);
+        }
+      } catch (err) {
+        set({ loadError: String(err) });
+      } finally {
+        set({ isGeneratingFingering: false });
       }
     },
 
@@ -472,11 +530,7 @@ export const useAppStore = create<AppState>((set, get) => {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function parseMidiInWorker(
-  buffer: ArrayBuffer,
-  id: string,
-  title: string
-): Promise<MusicDocument> {
+function parseMidiInWorker(buffer: ArrayBuffer, id: string, title: string): Promise<MusicDocument> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL("../workers/midi.worker.ts", import.meta.url), {
       type: "module",
@@ -501,6 +555,117 @@ function parseMidiInWorker(
     };
     worker.postMessage({ buffer, id, title }, [buffer]);
   });
+}
+
+// ── Fingering helpers ─────────────────────────────────────────────────────────
+
+const STEP_TO_SEMITONE: Record<string, number> = {
+  C: 0,
+  D: 2,
+  E: 4,
+  F: 5,
+  G: 7,
+  A: 9,
+  B: 11,
+};
+
+function xmlStepToMidi(step: string, octave: number, alter: number): number {
+  return (octave + 1) * 12 + (STEP_TO_SEMITONE[step] ?? 0) + Math.round(alter);
+}
+
+/**
+ * Parse fingering annotations from an annotated MusicXML string (returned by
+ * /fingering/generate) and splice them into the existing NoteEvent array.
+ *
+ * Strategy: piano scores from music21 typically have ONE <part> with two
+ * <staff> elements (staff 1 = treble = right, staff 2 = bass = left). We
+ * bucket fingerings by per-note <staff>; for parts with no staff info we
+ * fall back to the part's average MIDI pitch (≥60 → right). Then we match
+ * by position index within each hand group: the i-th XML right-hand note
+ * → the i-th NoteEvent whose `hand === "right"`.
+ *
+ * Pianoplayer encodes "anchored" fingers as circled glyphs (①-⑤); we
+ * normalize those to plain digits.
+ */
+const CIRCLED_FINGER_TO_DIGIT: Record<string, string> = {
+  "①": "1",
+  "②": "2",
+  "③": "3",
+  "④": "4",
+  "⑤": "5",
+};
+
+function applyFingeringFromXml(notes: NoteEvent[], annotatedXml: string): NoteEvent[] {
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(annotatedXml, "application/xml");
+
+  // Collect finger numbers per hand, in document order
+  const fingersByHand: Record<"left" | "right", (Finger | null)[]> = { left: [], right: [] };
+
+  const parts = Array.from(xmlDoc.querySelectorAll("part"));
+  for (const part of parts) {
+    const noteEls = Array.from(part.querySelectorAll("note"));
+
+    // First pass: do these notes carry <staff> info? (typical for piano grand-staff)
+    let hasStaff = false;
+    let pitchSum = 0,
+      pitchCount = 0;
+    for (const el of noteEls) {
+      if (el.querySelector("rest")) continue;
+      if (el.querySelector("staff")) hasStaff = true;
+      const step = el.querySelector("pitch > step")?.textContent ?? "";
+      const octave = Number(el.querySelector("pitch > octave")?.textContent ?? 0);
+      const alter = Number(el.querySelector("pitch > alter")?.textContent ?? 0);
+      if (step) {
+        pitchSum += xmlStepToMidi(step, octave, alter);
+        pitchCount++;
+      }
+    }
+    const fallbackHand: "left" | "right" =
+      (pitchCount > 0 ? pitchSum / pitchCount : 60) >= 60 ? "right" : "left";
+
+    // Second pass: bucket fingerings into the correct hand
+    for (const el of noteEls) {
+      if (el.querySelector("rest")) continue;
+
+      // Determine hand: prefer <staff> (1 = right/treble, 2 = left/bass), else fallback
+      let handKey: "left" | "right" = fallbackHand;
+      if (hasStaff) {
+        const staff = Number(el.querySelector("staff")?.textContent ?? 1);
+        handKey = staff === 2 ? "left" : "right";
+      }
+
+      const fingeringEl =
+        el.querySelector("notations technical fingering") ??
+        el.querySelector("notations fingering");
+      const raw = fingeringEl?.textContent?.trim() ?? "";
+      const normalized = CIRCLED_FINGER_TO_DIGIT[raw] ?? raw;
+      const finger: Finger | null = /^[1-5]$/.test(normalized)
+        ? (Number(normalized) as Finger)
+        : null;
+      fingersByHand[handKey].push(finger);
+    }
+  }
+
+  // Collect per-hand NoteEvent indices (already sorted by startSeconds in the flat array)
+  const idxByHand: Record<"left" | "right" | "unknown", number[]> = {
+    left: [],
+    right: [],
+    unknown: [],
+  };
+  notes.forEach((note, idx) => idxByHand[note.hand].push(idx));
+
+  // Splice in fingerings by index
+  const updated = notes.map((n) => ({ ...n }));
+  for (const hand of ["left", "right"] as const) {
+    const eventIdxs = idxByHand[hand];
+    const fingers = fingersByHand[hand];
+    const count = Math.min(eventIdxs.length, fingers.length);
+    for (let i = 0; i < count; i++) {
+      updated[eventIdxs[i]] = { ...updated[eventIdxs[i]], finger: fingers[i] };
+    }
+  }
+  return updated;
 }
 
 async function fetchMidiFromXml(
@@ -531,20 +696,19 @@ async function fetchMidiFromXml(
   }
 }
 
-async function fetchMusicXml(
-  buffer: ArrayBuffer,
-  doc: MusicDocument,
-  _id: string
-): Promise<void> {
+async function fetchMusicXml(buffer: ArrayBuffer, doc: MusicDocument, _id: string): Promise<void> {
   const blob = new Blob([buffer], { type: "audio/midi" });
   const form = new FormData();
   form.append("file", blob, "track.mid");
 
   const titleParam = encodeURIComponent(doc.title ?? "");
-  const res = await fetch(`/api/transcribe/midi2musicxml?title=${titleParam}`, { method: "POST", body: form });
+  const res = await fetch(`/api/transcribe/midi2musicxml?title=${titleParam}`, {
+    method: "POST",
+    body: form,
+  });
   if (!res.ok) return;
 
-  const { musicxml } = await res.json() as { musicxml: string };
+  const { musicxml } = (await res.json()) as { musicxml: string };
   doc.musicXml = musicxml;
 
   // Notify sheet view that MusicXML is now available

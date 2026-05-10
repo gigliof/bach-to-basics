@@ -44,12 +44,32 @@ export function PracticeView() {
     isLoadingDocument,
   } = useAppStore();
 
-  // Pre-warm audio so piano keys respond with minimal latency.
+  // Pre-warm sample loading so piano keys respond with minimal latency.
+  // Sample fetch (CDN) does NOT need a user gesture - just creates an
+  // AudioContext (suspended) and downloads samples in the background.
   useEffect(() => {
     syncEngine.audio.load().catch(() => {});
     const preWarm = () => syncEngine.audio.load().catch(() => {});
     document.addEventListener("pointermove", preWarm, { once: true });
     return () => document.removeEventListener("pointermove", preWarm);
+  }, []);
+
+  // Wake both audio contexts (Tone.js + smplr) on the FIRST real user gesture.
+  // The pre-warm above creates contexts before any gesture, so browser autoplay
+  // policy keeps them suspended. Without this, no sound ever plays.
+  useEffect(() => {
+    let woken = false;
+    const wake = () => {
+      if (woken) return;
+      woken = true;
+      syncEngine.wakeAudio();
+    };
+    window.addEventListener("pointerdown", wake);
+    window.addEventListener("keydown", wake);
+    return () => {
+      window.removeEventListener("pointerdown", wake);
+      window.removeEventListener("keydown", wake);
+    };
   }, []);
 
   // Apply theme to <html> element

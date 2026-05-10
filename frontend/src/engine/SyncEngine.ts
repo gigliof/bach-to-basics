@@ -11,10 +11,10 @@ interface YTPlayer {
 }
 
 interface SpeedTrainerOpts {
-  enabled:    boolean;
-  startPct:   number;
-  endPct:     number;
-  stepPct:    number;
+  enabled: boolean;
+  startPct: number;
+  endPct: number;
+  stepPct: number;
   currentPct: number;
 }
 
@@ -77,7 +77,11 @@ class SyncEngine {
   private countInBars: 0 | 1 | 2 = 0;
   private countInTimeouts: ReturnType<typeof setTimeout>[] = [];
   private speedTrainer: SpeedTrainerOpts = {
-    enabled: false, startPct: 60, endPct: 100, stepPct: 5, currentPct: 60,
+    enabled: false,
+    startPct: 60,
+    endPct: 100,
+    stepPct: 5,
+    currentPct: 60,
   };
 
   constructor() {
@@ -94,6 +98,39 @@ class SyncEngine {
     this._state.currentSeconds = 0;
     bus.emit("document:loaded", { id: doc.id, title: doc.title, totalDuration: doc.totalDuration });
     this.emitState("stopped");
+  }
+
+  /**
+   * Resume both audio contexts (Tone.js + smplr) after a user gesture.
+   *
+   * Required because browser autoplay policy keeps freshly-created
+   * AudioContexts suspended until a real gesture. Our pre-warm in
+   * PracticeView creates them on mount (before any gesture), so without
+   * this they never produce sound. Call from a click/keydown handler.
+   */
+  async wakeAudio() {
+    try {
+      await Tone.start(); // unblock Tone.js context
+      await this.audio.wake(); // unblock smplr context
+    } catch (err) {
+      console.error("SyncEngine.wakeAudio failed:", err);
+    }
+  }
+
+  /**
+   * Swap the document's `notes` array WITHOUT resetting playback state.
+   *
+   * Used to splice in fingering annotations mid-playback. The new array MUST
+   * have the same length, order, and `id`s as the existing one - otherwise
+   * `noteIndex` and `activeNotes` would point at stale data.
+   *
+   * Caveat: notes already scheduled into Tone.js (within ~LOOKAHEAD_DOC_SECONDS
+   * of the current position) keep their old `finger` value via closure capture.
+   * Notes beyond that window are scheduled fresh on the next tick.
+   */
+  updateDocumentNotes(notes: NoteEvent[]) {
+    if (!this.doc) return;
+    this.doc = { ...this.doc, notes };
   }
 
   async play(fromSeconds?: number) {
@@ -125,7 +162,7 @@ class SyncEngine {
     const timeSig = this.doc!.timeSignatures[0] ?? { numerator: 4, denominator: 4 };
     const beatsPerBar = timeSig.numerator;
     // Beat duration respects current tempo multiplier so count-in matches playback speed
-    const beatDurMs = (60 / bpm) / this._state.tempoMultiplier * 1000;
+    const beatDurMs = (60 / bpm / this._state.tempoMultiplier) * 1000;
     const totalBeats = this.countInBars * beatsPerBar;
 
     // Ensure metronome synth exists
@@ -143,8 +180,11 @@ class SyncEngine {
     for (let b = 0; b < totalBeats; b++) {
       const isAccent = b % beatsPerBar === 0;
       const id = setTimeout(() => {
-        try { this.metronome!.triggerAttackRelease(isAccent ? "C6" : "G5", "32n"); }
-        catch { /* AudioContext not ready */ }
+        try {
+          this.metronome!.triggerAttackRelease(isAccent ? "C6" : "G5", "32n");
+        } catch {
+          /* AudioContext not ready */
+        }
       }, b * beatDurMs);
       this.countInTimeouts.push(id);
     }
@@ -274,7 +314,10 @@ class SyncEngine {
   }
 
   setHandVolume(vol: { left: number; right: number }) {
-    this._state.handVolume = { left: Math.max(0, Math.min(1, vol.left)), right: Math.max(0, Math.min(1, vol.right)) };
+    this._state.handVolume = {
+      left: Math.max(0, Math.min(1, vol.left)),
+      right: Math.max(0, Math.min(1, vol.right)),
+    };
   }
 
   setWaitForHand(hand: "left" | "right" | "both") {
@@ -285,7 +328,9 @@ class SyncEngine {
     await this.audio.setInstrument(id);
   }
 
-  setYouTubePlayer(player: YTPlayer | null) { this.ytPlayer = player; }
+  setYouTubePlayer(player: YTPlayer | null) {
+    this.ytPlayer = player;
+  }
 
   // ── Practice feature setters ────────────────────────────────────────────────
 
@@ -351,7 +396,9 @@ class SyncEngine {
     return () => this.stateListeners.delete(cb);
   }
 
-  get state(): Readonly<SyncEngineState> { return this._state; }
+  get state(): Readonly<SyncEngineState> {
+    return this._state;
+  }
 
   // ── Private ─────────────────────────────────────────────────────────────────
 
@@ -407,7 +454,11 @@ class SyncEngine {
       const beat = Math.floor(docSeconds / (60 / bpm));
       if (beat !== this.lastBeatCrossed) {
         this.lastBeatCrossed = beat;
-        try { this.metronome.triggerAttackRelease("C6", "64n"); } catch { /* ignore */ }
+        try {
+          this.metronome.triggerAttackRelease("C6", "64n");
+        } catch {
+          /* ignore */
+        }
       }
     }
 
@@ -443,7 +494,10 @@ class SyncEngine {
 
       // note.startSeconds is in doc-time; compare directly to docSeconds
       if (note.startSeconds > docSeconds + LOOKAHEAD_DOC_SECONDS) break;
-      if (this.activeNotes.has(note.id)) { this.noteIndex++; continue; }
+      if (this.activeNotes.has(note.id)) {
+        this.noteIndex++;
+        continue;
+      }
 
       // Apply transposition (creates a new NoteEvent if needed, preserves original id)
       const tNote = this.transposeNote(note);
@@ -454,21 +508,27 @@ class SyncEngine {
       // Convert doc-time offset to real-time for Tone.js scheduling.
       // renderOffsetMs > 0 means audio plays earlier (compensates for delayed output).
       const offsetSec = this.renderOffsetMs / 1000;
-      const onDelay  = Math.max(0, (note.startSeconds - docSeconds) / tempoMultiplier - offsetSec);
-      const offDelay = Math.max(0, (note.endSeconds   - docSeconds) / tempoMultiplier - offsetSec);
+      const onDelay = Math.max(0, (note.startSeconds - docSeconds) / tempoMultiplier - offsetSec);
+      const offDelay = Math.max(0, (note.endSeconds - docSeconds) / tempoMultiplier - offsetSec);
 
       Tone.getTransport().scheduleOnce(() => {
         // Read activeHands at fire-time so hand toggles take effect immediately
         // (not at schedule-time, which would lag up to LOOKAHEAD_DOC_SECONDS).
-        const isActive = note.hand === "unknown" || this._state.activeHands.has(note.hand as "left" | "right");
+        const isActive =
+          note.hand === "unknown" || this._state.activeHands.has(note.hand as "left" | "right");
         if (isActive) {
           bus.emit("note:on", tNote);
           // Apply per-hand volume multiplier (also read at fire-time for instant effect)
-          const handVol = note.hand === "left"  ? this._state.handVolume.left
-                        : note.hand === "right" ? this._state.handVolume.right
-                        : 1;
-          const scaledNote = handVol === 1 ? tNote
-            : { ...tNote, velocity: Math.max(1, Math.round(tNote.velocity * handVol)) };
+          const handVol =
+            note.hand === "left"
+              ? this._state.handVolume.left
+              : note.hand === "right"
+                ? this._state.handVolume.right
+                : 1;
+          const scaledNote =
+            handVol === 1
+              ? tNote
+              : { ...tNote, velocity: Math.max(1, Math.round(tNote.velocity * handVol)) };
           this.audio.playNote(scaledNote);
         }
       }, `+${onDelay}`);
@@ -480,11 +540,13 @@ class SyncEngine {
 
       // Wait mode
       if (this._state.waitMode && this._state.status === "playing") {
-        const isActive = note.hand === "unknown" || this._state.activeHands.has(note.hand as "left" | "right");
+        const isActive =
+          note.hand === "unknown" || this._state.activeHands.has(note.hand as "left" | "right");
         // Only pause for the targeted hand (waitForHand); "both" = current behavior
-        const isWaited = this._state.waitForHand === "both"
-          || note.hand === "unknown"
-          || note.hand === this._state.waitForHand;
+        const isWaited =
+          this._state.waitForHand === "both" ||
+          note.hand === "unknown" ||
+          note.hand === this._state.waitForHand;
         if (isActive && isWaited && onDelay <= 0.05) {
           this.clock.pause();
           this._state.status = "waiting";
@@ -503,7 +565,9 @@ class SyncEngine {
         if (Math.abs(actual - expectedYtTime) > YT_DRIFT_THRESHOLD) {
           this.ytPlayer.seekTo(expectedYtTime, true);
         }
-      } catch { /* not ready yet */ }
+      } catch {
+        /* not ready yet */
+      }
     }
   }
 

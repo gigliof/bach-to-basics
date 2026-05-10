@@ -17,12 +17,16 @@ export function FallingNotesView() {
   const accuracy = useAccuracy(midiEnabled && (status === "playing" || status === "paused"));
 
   const measureStarts = useMemo(
-    () => doc ? computeMeasureSeconds(doc.timeSignatures, doc.tempoMap, doc.ppq, doc.totalDuration) : [],
+    () =>
+      doc
+        ? computeMeasureSeconds(doc.timeSignatures, doc.tempoMap, doc.ppq, doc.totalDuration)
+        : [],
     [doc]
   );
 
   const beatStarts = useMemo(
-    () => doc ? computeBeatSeconds(doc.timeSignatures, doc.tempoMap, doc.ppq, doc.totalDuration) : [],
+    () =>
+      doc ? computeBeatSeconds(doc.timeSignatures, doc.tempoMap, doc.ppq, doc.totalDuration) : [],
     [doc]
   );
 
@@ -38,7 +42,7 @@ export function FallingNotesView() {
       height,
       viewportSeconds: settings.viewportSeconds,
       fallingNotesLabelMode: settings.fallingNotesLabelMode,
-      showFingering: settings.showFingering,
+      showFingering: settings.showFingering && settings.showFingeringOnNotes,
       showHandColors: settings.showHandColors,
       useFlats: settings.useFlats,
       noteFilter: settings.noteFilter,
@@ -103,7 +107,7 @@ export function FallingNotesView() {
     rendererRef.current?.setOptions({
       viewportSeconds: settings.viewportSeconds,
       fallingNotesLabelMode: settings.fallingNotesLabelMode,
-      showFingering: settings.showFingering,
+      showFingering: settings.showFingering && settings.showFingeringOnNotes,
       showHandColors: settings.showHandColors,
       useFlats: settings.useFlats,
       noteFilter: settings.noteFilter,
@@ -127,6 +131,7 @@ export function FallingNotesView() {
     settings.viewportSeconds,
     settings.fallingNotesLabelMode,
     settings.showFingering,
+    settings.showFingeringOnNotes,
     settings.showHandColors,
     settings.useFlats,
     settings.noteFilter,
@@ -151,7 +156,10 @@ export function FallingNotesView() {
     if (!doc || !settings.scrollToSeek) return;
     // Seek forward/backward by 30% of the viewport window per scroll tick
     const delta = (e.deltaY > 0 ? 1 : -1) * settings.viewportSeconds * 0.3;
-    const next = Math.max(0, Math.min(doc.totalDuration, useAppStore.getState().currentSeconds + delta));
+    const next = Math.max(
+      0,
+      Math.min(doc.totalDuration, useAppStore.getState().currentSeconds + delta)
+    );
     seek(next);
   };
 
@@ -162,19 +170,25 @@ export function FallingNotesView() {
       onWheel={handleWheel}
       style={{
         minHeight: 200,
-        background: "radial-gradient(ellipse at 50% 100%, rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)",
+        background:
+          "radial-gradient(ellipse at 50% 100%, rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)",
         borderTop: "1px solid var(--color-notes-border)",
       }}
     >
       <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />
 
-      {midiEnabled && (accuracy.correct + accuracy.wrong + accuracy.missed) > 0 && (
+      {midiEnabled && accuracy.correct + accuracy.wrong + accuracy.missed > 0 && (
         <div
           className="absolute top-2 left-2 z-10 pointer-events-none text-xs px-2 py-0.5 rounded-full font-medium"
           style={{
-            background: accuracy.score >= 80 ? "rgba(34,197,94,0.12)" : accuracy.score >= 50 ? "rgba(234,179,8,0.12)" : "rgba(239,68,68,0.12)",
-            color:      accuracy.score >= 80 ? "#4ade80"               : accuracy.score >= 50 ? "#eab308"              : "#ef4444",
-            border:     "1px solid currentColor",
+            background:
+              accuracy.score >= 80
+                ? "rgba(34,197,94,0.12)"
+                : accuracy.score >= 50
+                  ? "rgba(234,179,8,0.12)"
+                  : "rgba(239,68,68,0.12)",
+            color: accuracy.score >= 80 ? "#4ade80" : accuracy.score >= 50 ? "#eab308" : "#ef4444",
+            border: "1px solid currentColor",
           }}
         >
           <TargetIcon /> {accuracy.score}%
@@ -187,9 +201,18 @@ export function FallingNotesView() {
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
 const TargetIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: "inline", verticalAlign: "middle", marginBottom: 1 }} aria-hidden="true">
-    <circle cx="12" cy="12" r="9"/>
-    <circle cx="12" cy="12" r="5"/>
-    <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/>
+  <svg
+    width="11"
+    height="11"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    style={{ display: "inline", verticalAlign: "middle", marginBottom: 1 }}
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="5" />
+    <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
   </svg>
 );

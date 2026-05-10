@@ -4,18 +4,18 @@ import type { NoteEvent } from "@bach-to-basics/shared";
 // ── Instrument catalogue ──────────────────────────────────────────────────────
 
 export type InstrumentId =
-  | "grand"        // Splendid Grand Piano (SplendidGrandPiano)
-  | "bright"       // Bright Acoustic Piano (Soundfont)
-  | "electric"     // CP80 Electric Grand (ElectricPiano)
-  | "harpsichord"  // Harpsichord (Soundfont)
-  | "honkytonk";   // Honky-Tonk Piano (Soundfont)
+  | "grand" // Splendid Grand Piano (SplendidGrandPiano)
+  | "bright" // Bright Acoustic Piano (Soundfont)
+  | "electric" // CP80 Electric Grand (ElectricPiano)
+  | "harpsichord" // Harpsichord (Soundfont)
+  | "honkytonk"; // Honky-Tonk Piano (Soundfont)
 
 export const INSTRUMENT_LABELS: Record<InstrumentId, string> = {
-  grand:       "Grand",
-  bright:      "Bright",
-  electric:    "E-Piano",
+  grand: "Grand",
+  bright: "Bright",
+  electric: "E-Piano",
   harpsichord: "Harpsi",
-  honkytonk:   "Honky",
+  honkytonk: "Honky",
 };
 
 // Minimal common interface shared by all smplr players
@@ -54,10 +54,20 @@ export class AudioEngine {
     if (this._loaded) return;
     if (this._loadPromise) return this._loadPromise;
     this._loadPromise = (async () => {
-      if (!this.ctx) this.ctx = new AudioContext();
-      this.player = createPlayer(this._currentId, this.ctx);
-      await this.player.load;
-      this._loaded = true;
+      try {
+        if (!this.ctx) this.ctx = new AudioContext();
+        this.player = createPlayer(this._currentId, this.ctx);
+        await this.player.load;
+        this._loaded = true;
+      } catch (err) {
+        // Reset the cached promise so the next call can retry. Without this,
+        // a one-time failure (CDN hiccup, blocked sample fetch, etc.) would
+        // leave _loaded=false and ALL audio permanently silent.
+        this._loadPromise = null;
+        this.player = null;
+        console.error("AudioEngine.load failed:", err);
+        throw err;
+      }
     })();
     return this._loadPromise;
   }
@@ -72,7 +82,11 @@ export class AudioEngine {
     this._loaded = false;
     this._loadPromise = null;
     // Silence any ongoing audio before swapping the player
-    try { this.player?.stop?.(); } catch { /* ignore */ }
+    try {
+      this.player?.stop?.();
+    } catch {
+      /* ignore */
+    }
     this.player = null;
     // Pre-load the new instrument if an AudioContext already exists
     if (this.ctx) await this.load();
@@ -80,6 +94,25 @@ export class AudioEngine {
 
   get loaded() {
     return this._loaded;
+  }
+
+  /**
+   * Resume the AudioContext after a user gesture. Safe to call repeatedly.
+   *
+   * Browsers' autoplay policy keeps a freshly-created AudioContext in
+   * "suspended" state until a real user gesture. Our `load()` is invoked on
+   * mount (before any gesture) so the context exists but produces no sound
+   * until this is called from a click/keydown handler.
+   */
+  async wake() {
+    if (!this.ctx) this.ctx = new AudioContext();
+    if (this.ctx.state === "suspended") {
+      try {
+        await this.ctx.resume();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   playNote(note: NoteEvent) {
@@ -104,6 +137,10 @@ export class AudioEngine {
   }
 
   stopAll() {
-    try { this.player?.stop?.(); } catch { /* ignore */ }
+    try {
+      this.player?.stop?.();
+    } catch {
+      /* ignore */
+    }
   }
 }

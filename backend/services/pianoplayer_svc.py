@@ -1,8 +1,8 @@
 """
 pianoplayer service: annotate MusicXML with fingering (Parncutt algorithm).
 
-Note: defusedxml.defuse_stdlib() is called in main.py before this module
-is imported, so xml.etree (used by music21 internally) is already patched.
+Uses the pianoplayer v3 API (run_annotate) which handles part routing and
+hand assignment internally.
 """
 import asyncio
 import os
@@ -28,11 +28,12 @@ async def annotate_fingering(musicxml: str) -> str:
 
 
 def _annotate(musicxml: str) -> str:
-    from pianoplayer.hand import RightHand, LeftHand
-    import music21
+    import io
+    import contextlib
+    from pianoplayer.core import run_annotate
 
     xml_path = None
-    out_tmp_name = None
+    out_path = None
     try:
         with tempfile.NamedTemporaryFile(
             suffix=".xml", delete=False, mode="w", encoding="utf-8"
@@ -40,37 +41,24 @@ def _annotate(musicxml: str) -> str:
             f.write(musicxml)
             xml_path = f.name
 
-        score = music21.converter.parse(xml_path)
-
-        # pianoplayer works on individual parts
-        for part in score.parts:
-            notes = list(part.flatten().notes)
-            if not notes:
-                continue
-
-            # Determine left / right hand by average register
-            avg_pitch = sum(
-                n.pitch.midi for n in notes if hasattr(n, "pitch")
-            ) / max(len(notes), 1)
-            hand_cls = RightHand if avg_pitch >= 60 else LeftHand
-
-            try:
-                hand = hand_cls(score, 0)
-                hand.autodepth = False
-                hand.verbose = False
-                hand.generate(part=part.id if hasattr(part, "id") else 0)
-            except Exception:
-                pass  # pianoplayer can fail on complex scores; skip gracefully
-
         out_tmp = tempfile.NamedTemporaryFile(suffix=".xml", delete=False)
         out_tmp.close()
-        out_tmp_name = out_tmp.name
-        score.write("musicxml", fp=out_tmp_name)
+        out_path = out_tmp.name
 
-        return Path(out_tmp_name).read_text(encoding="utf-8")
+        # Suppress Rich progress/summary output so server logs stay clean.
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            run_annotate(
+                xml_path,
+                outputfile=out_path,
+                n_measures=1000,
+                auto_routing=True,  # let pianoplayer detect which part is L/R
+                quiet=True,
+            )
+
+        return Path(out_path).read_text(encoding="utf-8")
 
     finally:
         if xml_path:
             Path(xml_path).unlink(missing_ok=True)
-        if out_tmp_name:
-            Path(out_tmp_name).unlink(missing_ok=True)
+        if out_path:
+            Path(out_path).unlink(missing_ok=True)

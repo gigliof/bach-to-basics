@@ -430,7 +430,13 @@ function ResetButton() {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function SettingsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { settings, updateSettings } = useAppStore();
+  const {
+    settings,
+    updateSettings,
+    document: doc,
+    isGeneratingFingering,
+    generateFingering,
+  } = useAppStore();
 
   // Computes the inline style for range inputs.
   // Sets --fill-pct so the CSS gradient draws the correct filled/unfilled split.
@@ -1084,6 +1090,63 @@ export function SettingsPanel({ open, onClose }: { open: boolean; onClose: () =>
 
           {/* ── Overlays ───────────────────────────────────────────────────── */}
           <Section title="Overlays">
+            <Row
+              label="Finger numbers"
+              sublabel="1-5 hints on the piano keyboard"
+              title="Show finger number hints on the piano keyboard"
+            >
+              {doc?.musicXml && (
+                <button
+                  onClick={() => void generateFingering()}
+                  disabled={isGeneratingFingering}
+                  title={
+                    doc.fingeringVersion === "auto"
+                      ? "Regenerate finger numbers using the Parncutt algorithm"
+                      : "Generate finger number hints using the Parncutt algorithm"
+                  }
+                  style={{
+                    fontSize: 11,
+                    padding: "3px 9px",
+                    borderRadius: 5,
+                    border: "1px solid var(--color-border)",
+                    background: "var(--color-surface-2)",
+                    color: isGeneratingFingering
+                      ? "var(--color-text-muted)"
+                      : "var(--color-accent)",
+                    cursor: isGeneratingFingering ? "wait" : "pointer",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                    opacity: isGeneratingFingering ? 0.6 : 1,
+                  }}
+                >
+                  {isGeneratingFingering
+                    ? "Generating…"
+                    : doc.fingeringVersion === "auto"
+                      ? "Regenerate"
+                      : "Generate"}
+                </button>
+              )}
+              <Toggle
+                active={settings.showFingering}
+                onClick={() => updateSettings({ showFingering: !settings.showFingering })}
+              />
+            </Row>
+
+            {settings.showFingering && (
+              <Row
+                label="Also on falling notes"
+                sublabel="appends digit to each note bar"
+                title="Also overlay finger digits on the falling-note bars (off by default - visually busier)"
+              >
+                <Toggle
+                  active={settings.showFingeringOnNotes}
+                  onClick={() =>
+                    updateSettings({ showFingeringOnNotes: !settings.showFingeringOnNotes })
+                  }
+                />
+              </Row>
+            )}
+
             <Row
               label="Measure numbers"
               sublabel="on the left edge of falling notes"
