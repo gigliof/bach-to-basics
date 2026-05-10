@@ -116,7 +116,7 @@ describe("MidiClock", () => {
       mockTransport.seconds = 2;
       expect(clock.currentSeconds).toBe(5);
 
-      // Change multiplier — currentSeconds must remain 5
+      // Change multiplier - currentSeconds must remain 5
       clock.tempoMultiplier = 0.5;
       expect(clock.currentSeconds).toBeCloseTo(5);
     });

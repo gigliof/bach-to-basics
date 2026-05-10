@@ -14,45 +14,45 @@ frontend/public/soundfont/sonivox.sf3
     Used here as the AlphaTab playback soundfont.
 
 ────────────────────────────────────────────────────────────────────────────
-Frontend dependencies (selected — full list in frontend/package.json)
+Frontend dependencies (selected - full list in frontend/package.json)
 ────────────────────────────────────────────────────────────────────────────
 
-  AlphaTab                 — MPL-2.0            (sheet music renderer)
-  PixiJS                   — MIT                (WebGL renderer)
-  Tone.js                  — MIT                (audio scheduling)
-  smplr                    — MIT                (sample-based instruments)
-  WebMidi.js               — Apache-2.0         (MIDI input)
-  React                    — MIT
-  Zustand                  — MIT
-  Vite                     — MIT
-  Tailwind CSS             — MIT
+  AlphaTab                 - MPL-2.0            (sheet music renderer)
+  PixiJS                   - MIT                (WebGL renderer)
+  Tone.js                  - MIT                (audio scheduling)
+  smplr                    - MIT                (sample-based instruments)
+  WebMidi.js               - Apache-2.0         (MIDI input)
+  React                    - MIT
+  Zustand                  - MIT
+  Vite                     - MIT
+  Tailwind CSS             - MIT
 
 MPL-2.0 note: AlphaTab is consumed unmodified as an npm dependency. MPL-2.0
-is per-file copyleft — if you modify AlphaTab's own source files you must
+is per-file copyleft - if you modify AlphaTab's own source files you must
 share those changes under MPL-2.0, but the rest of this codebase remains
 under MIT.
 
 ────────────────────────────────────────────────────────────────────────────
-Backend dependencies (selected — full list in backend/requirements.txt)
+Backend dependencies (selected - full list in backend/requirements.txt)
 ────────────────────────────────────────────────────────────────────────────
 
-  music21                  — LGPL-3.0           (music theory + MusicXML)
-  FastAPI                  — MIT
-  defusedxml               — PSF-2.0
-  pianoplayer              — MIT                (Parncutt fingering algorithm)
-  yt-dlp                   — Unlicense          (YouTube audio extraction)
-  pdf2image                — MIT
-  Basic Pitch (optional)   — Apache-2.0         (audio → MIDI transcription)
+  music21                  - LGPL-3.0           (music theory + MusicXML)
+  FastAPI                  - MIT
+  defusedxml               - PSF-2.0
+  pianoplayer              - MIT                (Parncutt fingering algorithm)
+  yt-dlp                   - Unlicense          (YouTube audio extraction)
+  pdf2image                - MIT
+  Basic Pitch (optional)   - Apache-2.0         (audio → MIDI transcription)
 
 LGPL note (music21): used as a pure Python library import, unmodified.
 
 ────────────────────────────────────────────────────────────────────────────
-Optional external tools (NOT bundled — user installs separately)
+Optional external tools (NOT bundled - user installs separately)
 ────────────────────────────────────────────────────────────────────────────
 
-  Audiveris 5.x            — AGPL-3.0           (PDF → MusicXML OMR)
+  Audiveris 5.x            - AGPL-3.0           (PDF → MusicXML OMR)
 
 Audiveris is invoked as a subprocess if the user places audiveris.jar at
 backend/bin/. Because it's distributed separately by the user (and is
 optional), the AGPL obligations apply only to anyone redistributing the
-JAR or hosting Audiveris itself — not to this codebase.
+JAR or hosting Audiveris itself - not to this codebase.

@@ -1,4 +1,4 @@
-# Root-level .dockerignore — applied to the build context for the frontend
+# Root-level .dockerignore - applied to the build context for the frontend
 # (which uses the repo root as context). Keep this list aggressive so the
 # build context stays small.
 

@@ -36,7 +36,7 @@ describe("lighten", () => {
   });
 
   it("handles zero channel values", () => {
-    // Red only — green and blue stay 0
+    // Red only - green and blue stay 0
     // Math.round(255 * 0.5) = Math.round(127.5) = 128 = 0x80
     expect(lighten(0xff0000, 0.5)).toBe(0x800000);
   });

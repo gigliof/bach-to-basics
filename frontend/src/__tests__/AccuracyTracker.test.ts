@@ -94,7 +94,7 @@ describe("AccuracyTracker", () => {
     bus.emit("note:on", note);
     bus.emit("input:note:on", { midi: 60, velocity: 80 }); // correct hit
     const countBefore = updates.length;
-    bus.emit("note:off", note); // already hit — should not emit again
+    bus.emit("note:off", note); // already hit - should not emit again
 
     // No new accuracy:update should have been emitted for the note:off
     expect(updates.length).toBe(countBefore);
@@ -247,7 +247,7 @@ describe("AccuracyTracker", () => {
     bus.emit("transport:seek", { seconds: 5 }); // clears pending
 
     const countBefore = updates.length;
-    bus.emit("note:off", note); // pending was cleared — should be a no-op
+    bus.emit("note:off", note); // pending was cleared - should be a no-op
 
     // No new accuracy:update should have fired
     expect(updates.length).toBe(countBefore);
