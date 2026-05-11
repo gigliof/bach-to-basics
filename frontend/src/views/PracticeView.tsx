@@ -115,7 +115,7 @@ export function PracticeView() {
   const loadFile = useCallback(
     (file: File) => {
       if (file.name.match(/\.midi?$/i)) loadMidiFile(file);
-      else if (file.name.match(/\.mxl?$/i)) loadMusicXmlFile(file);
+      else if (file.name.match(/\.(xml|mxl)$/i)) loadMusicXmlFile(file);
       else if (file.name.match(/\.pdf$/i)) loadPdfFile(file);
     },
     [loadMidiFile, loadMusicXmlFile, loadPdfFile]

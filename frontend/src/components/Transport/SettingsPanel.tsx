@@ -1100,8 +1100,8 @@ export function SettingsPanel({ open, onClose }: { open: boolean; onClose: () =>
                   onClick={() => void generateFingering()}
                   disabled={isGeneratingFingering}
                   title={
-                    doc.fingeringVersion === "auto"
-                      ? "Regenerate finger numbers using the Parncutt algorithm"
+                    doc.fingeringVersion !== "none"
+                      ? "Refine finger numbers using the Parncutt algorithm. Existing fingerings are kept as anchors and the algorithm only fills in gaps - useful for editorial scores (e.g. Henle) where only hard passages are annotated."
                       : "Generate finger number hints using the Parncutt algorithm"
                   }
                   style={{
@@ -1121,7 +1121,7 @@ export function SettingsPanel({ open, onClose }: { open: boolean; onClose: () =>
                 >
                   {isGeneratingFingering
                     ? "Generating…"
-                    : doc.fingeringVersion === "auto"
+                    : doc.fingeringVersion !== "none"
                       ? "Regenerate"
                       : "Generate"}
                 </button>

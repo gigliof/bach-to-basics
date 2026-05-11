@@ -372,8 +372,24 @@ export const useAppStore = create<AppState>((set, get) => {
         doc.musicXml = musicxml;
         doc.sourceType = "musicxml";
 
-        set({ document: { ...doc, midiBuffer: bufferForDoc } });
-        await syncEngine.loadDocument({ ...doc, midiBuffer: bufferForDoc });
+        // Preserve any printed fingerings Audiveris detected in the PDF
+        // (uncommon but possible for well-scanned editorial scores).
+        let manualFingeringsFound = false;
+        if (musicxml) {
+          const notesWithFingerings = applyFingeringFromXml(doc.notes, musicxml);
+          if (notesWithFingerings.some((n) => n.finger !== null)) {
+            doc.notes = notesWithFingerings;
+            doc.fingeringVersion = "manual";
+            manualFingeringsFound = true;
+          }
+        }
+
+        const finalDoc = { ...doc, midiBuffer: bufferForDoc };
+        set((s) => ({
+          document: finalDoc,
+          settings: manualFingeringsFound ? { ...s.settings, showFingering: true } : s.settings,
+        }));
+        await syncEngine.loadDocument(finalDoc);
       } catch (err) {
         set({ loadError: String(err) });
       } finally {
@@ -689,10 +705,29 @@ async function fetchMidiFromXml(
   updatedDoc.musicXml = doc.musicXml;
   updatedDoc.sourceType = "musicxml";
 
+  // Preserve editorial fingerings from the source MusicXML when present
+  // (e.g. publisher scores from Henle, Barenreiter). Without this the
+  // round-trip through MIDI would strip them, since MIDI has no fingering
+  // field. Same matching helper as Generate - any standard <fingering>
+  // elements with <staff> hints are honored.
+  let manualFingeringsFound = false;
+  if (doc.musicXml) {
+    const notesWithFingerings = applyFingeringFromXml(updatedDoc.notes, doc.musicXml);
+    if (notesWithFingerings.some((n) => n.finger !== null)) {
+      updatedDoc.notes = notesWithFingerings;
+      updatedDoc.fingeringVersion = "manual";
+      manualFingeringsFound = true;
+    }
+  }
+
   const { document: currentDoc } = useAppStore.getState();
   if (currentDoc?.id === id) {
-    useAppStore.setState({ document: { ...updatedDoc, midiBuffer: bufferForDoc } });
-    await syncEngine.loadDocument({ ...updatedDoc, midiBuffer: bufferForDoc });
+    const finalDoc = { ...updatedDoc, midiBuffer: bufferForDoc };
+    useAppStore.setState((s) => ({
+      document: finalDoc,
+      settings: manualFingeringsFound ? { ...s.settings, showFingering: true } : s.settings,
+    }));
+    await syncEngine.loadDocument(finalDoc);
   }
 }
 
