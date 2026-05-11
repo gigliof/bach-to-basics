@@ -55,6 +55,7 @@ Drag-and-drop anywhere on the window, or use the import button.
 - **Transposition**: shift the whole score ±12 semitones
 - **Per-hand volume**: solo or mute either hand independently
 - **Render-offset**: shift audio scheduling ±200 ms to compensate for audio interface latency
+- **Fingering hints**: 1-5 finger digits on the piano keys, optionally also on the falling-note bars. Auto-generates via the Parncutt algorithm ([pianoplayer](https://github.com/marcomusy/pianoplayer)) for files without fingerings, and preserves editorial fingerings already present in publisher MusicXML / `.mxl` files (Henle, Bärenreiter, etc.). "Regenerate" treats existing fingerings as anchors and only fills in gaps - ideal for editorial scores where only hard passages are annotated.
 
 ### Audio & MIDI
 
@@ -180,7 +181,6 @@ The backend already exposes endpoints for several features that don't yet have U
 
 - **Audio-to-MIDI transcription** via [Basic Pitch](https://github.com/spotify/basic-pitch) (`/transcribe/mp3`)
 - **YouTube-to-MIDI** via yt-dlp + Basic Pitch (`/youtube/extract`), sync data model already in place
-- **Auto-fingering** via [pianoplayer](https://github.com/marcomusy/pianoplayer) (`/fingering/generate`)
 - **Export** to PDF / MP3 / MIDI / MusicXML (`/export/pdf`, `/export/mp3`)
 
 These will become user-facing in upcoming releases. PRs welcome.
