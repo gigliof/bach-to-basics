@@ -66,8 +66,8 @@ importers:
         specifier: ^19.2.6
         version: 19.2.6(react@19.2.6)
       smplr:
-        specifier: ^0.14.0
-        version: 0.14.0
+        specifier: ^0.20.0
+        version: 0.20.0
       tone:
         specifier: ^15.0.4
         version: 15.1.22
@@ -1257,8 +1257,8 @@ packages:
     resolution: {integrity: sha512-stxByr12oeeOyY2BlviTNQlYV5xOj47GirPr4yA1hE9JCtxfQN0+tVbkxwCtYDQWhEKWFHsEK48ORg5jrouCAg==}
     engines: {node: '>=20'}
 
-  smplr@0.14.0:
-    resolution: {integrity: sha512-CLKTaAja5ZzRaX4ayqOs3H/Fl8dhhHjV6kAfW72z+zaTisvxyy3K81S+br4FoBqWY9WuBY40ejIWMdzXZWa2eA==}
+  smplr@0.20.0:
+    resolution: {integrity: sha512-XGxPL4ANBP0qzs30y673HYqvAEl/fJq/SKLv1oJpRuoo0VDqUcRGBz5A99PzN7srKT2WYtFU+yl6uqGHz/21zQ==}
     engines: {node: '>=14.0.0'}
 
   source-map-js@1.2.1:
@@ -2636,7 +2636,7 @@ snapshots:
       ansi-styles: 6.2.3
       is-fullwidth-code-point: 5.1.0
 
-  smplr@0.14.0: {}
+  smplr@0.20.0: {}
 
   source-map-js@1.2.1: {}
 
