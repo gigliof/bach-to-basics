@@ -32,11 +32,19 @@ export function TransportControls() {
     loadPdfFile,
     isLoadingDocument,
     loadingMessage,
+    exportMidi,
+    exportMusicXml,
+    exportPdf,
+    isExportingPdf,
   } = useAppStore();
 
   const [speedOpen, setSpeedOpen] = useState(false);
   const [speedRect, setSpeedRect] = useState<{ bottom: number; right: number } | null>(null);
   const speedContainerRef = useRef<HTMLDivElement>(null);
+
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportRect, setExportRect] = useState<{ bottom: number; left: number } | null>(null);
+  const exportContainerRef = useRef<HTMLDivElement>(null);
 
   // When opening, capture fixed position so popover escapes the overflow:auto container
   const toggleSpeed = () => {
@@ -46,6 +54,24 @@ export function TransportControls() {
     }
     setSpeedOpen((v) => !v);
   };
+
+  const toggleExport = () => {
+    if (!exportOpen && exportContainerRef.current) {
+      const r = exportContainerRef.current.getBoundingClientRect();
+      setExportRect({ bottom: window.innerHeight - r.top + 8, left: r.left });
+    }
+    setExportOpen((v) => !v);
+  };
+
+  // Close export popover on outside click
+  useEffect(() => {
+    if (!exportOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (!exportContainerRef.current?.contains(e.target as Node)) setExportOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [exportOpen]);
 
   // Close speed popover on outside click
   useEffect(() => {
@@ -226,6 +252,98 @@ export function TransportControls() {
             }}
           />
         </label>
+
+        {/* ── Zone 1b: Export dropdown - visually paired with Import (same accent style) ── */}
+        <div ref={exportContainerRef} style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            onClick={toggleExport}
+            title={
+              doc ? "Save the current score in another format" : "Load a file to enable export"
+            }
+            aria-label="Export current score"
+            aria-haspopup="menu"
+            aria-expanded={exportOpen}
+            disabled={!doc}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: 32,
+              width: 32,
+              padding: 0,
+              borderRadius: 7,
+              cursor: doc ? "pointer" : "not-allowed",
+              flexShrink: 0,
+              background: doc ? "rgba(147,51,234,0.14)" : "var(--color-surface-2)",
+              border: doc ? "1px solid rgba(147,51,234,0.35)" : "1px solid var(--color-border)",
+              color: doc ? "var(--color-accent-text)" : "var(--color-text-muted)",
+              opacity: doc ? 1 : 0.55,
+              transition: "background 0.12s",
+              fontFamily: "inherit",
+            }}
+            onMouseEnter={(e) => {
+              if (doc) (e.currentTarget as HTMLElement).style.background = "rgba(147,51,234,0.24)";
+            }}
+            onMouseLeave={(e) => {
+              if (doc) (e.currentTarget as HTMLElement).style.background = "rgba(147,51,234,0.14)";
+            }}
+          >
+            {isExportingPdf ? <SpinnerIcon /> : <DownloadIcon />}
+          </button>
+          {exportOpen && exportRect && (
+            <div
+              role="menu"
+              style={{
+                position: "fixed",
+                bottom: exportRect.bottom,
+                left: exportRect.left,
+                zIndex: 1100,
+                minWidth: 180,
+                padding: 6,
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                borderRadius: 8,
+                boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              <ExportMenuItem
+                label="MIDI"
+                sublabel=".midi"
+                enabled={!!doc?.midiBuffer}
+                onClick={() => {
+                  exportMidi();
+                  setExportOpen(false);
+                }}
+                disabledReason="No MIDI data in this document"
+              />
+              <ExportMenuItem
+                label="MusicXML"
+                sublabel=".musicxml"
+                enabled={!!doc?.musicXml}
+                onClick={() => {
+                  exportMusicXml();
+                  setExportOpen(false);
+                }}
+                disabledReason="No MusicXML data in this document"
+              />
+              <ExportMenuItem
+                label="PDF sheet music"
+                sublabel={isExportingPdf ? "rendering..." : ".pdf"}
+                enabled={!!doc?.musicXml && !isExportingPdf}
+                onClick={() => {
+                  void exportPdf();
+                  setExportOpen(false);
+                }}
+                disabledReason={
+                  !doc?.musicXml ? "No MusicXML data in this document" : "Already rendering a PDF"
+                }
+              />
+            </div>
+          )}
+        </div>
 
         <Divider />
 
@@ -624,6 +742,58 @@ function Divider() {
   );
 }
 
+// ── Sub-components ───────────────────────────────────────────────────────────
+
+function ExportMenuItem({
+  label,
+  sublabel,
+  enabled,
+  onClick,
+  disabledReason,
+}: {
+  label: string;
+  sublabel: string;
+  enabled: boolean;
+  onClick: () => void;
+  disabledReason: string;
+}) {
+  return (
+    <button
+      role="menuitem"
+      onClick={enabled ? onClick : undefined}
+      disabled={!enabled}
+      title={enabled ? `Save as ${sublabel}` : disabledReason}
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        justifyContent: "space-between",
+        gap: 12,
+        padding: "8px 10px",
+        background: "transparent",
+        border: "none",
+        borderRadius: 5,
+        cursor: enabled ? "pointer" : "not-allowed",
+        opacity: enabled ? 1 : 0.45,
+        color: "var(--color-text)",
+        fontSize: 13,
+        fontWeight: 500,
+        fontFamily: "inherit",
+        textAlign: "left",
+        transition: "background 0.1s",
+      }}
+      onMouseEnter={(e) => {
+        if (enabled) (e.currentTarget as HTMLElement).style.background = "var(--color-surface-2)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background = "transparent";
+      }}
+    >
+      <span>{label}</span>
+      <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{sublabel}</span>
+    </button>
+  );
+}
+
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const PlayIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -659,6 +829,12 @@ const SkipFwdIcon = () => (
 const UploadIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
     <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z" />
+  </svg>
+);
+const DownloadIcon = () => (
+  // Vertical mirror of UploadIcon - same stem width, same bar at bottom, arrow flipped.
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M9 4h6v6h4l-7 7-7-7h4v-6zm-4 14h14v2H5v-2z" />
   </svg>
 );
 const SpinnerIcon = () => (

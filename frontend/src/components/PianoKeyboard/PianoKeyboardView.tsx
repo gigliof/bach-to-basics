@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import bus from "../../engine/EventBus";
 import { PianoKeyboard } from "./PianoKeyboard";
 import { useAppStore, COLOR_PRESET_VALUES } from "../../store/useAppStore";
@@ -11,6 +11,9 @@ export function PianoKeyboardView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const kbRef = useRef<PianoKeyboard | null>(null);
+  /** Flips true once PixiJS has finished drawing the keys; we fade the canvas in
+   *  and the skeleton out at that point. Avoids the brief "black bar" flash. */
+  const [pianoReady, setPianoReady] = useState(false);
   const { settings } = useAppStore();
 
   useEffect(() => {
@@ -19,9 +22,10 @@ export function PianoKeyboardView() {
     const container = containerRef.current;
     const width = container.clientWidth || window.innerWidth;
 
-    const themeColors = settings.colorTheme === "custom"
-      ? settings.customColors
-      : COLOR_PRESET_VALUES[settings.colorTheme];
+    const themeColors =
+      settings.colorTheme === "custom"
+        ? settings.customColors
+        : COLOR_PRESET_VALUES[settings.colorTheme];
 
     const kb = new PianoKeyboard(canvasRef.current, {
       width,
@@ -41,7 +45,9 @@ export function PianoKeyboardView() {
       },
     });
     kbRef.current = kb;
-    kb.init(canvasRef.current);
+    // init() is async (awaits PIXI.Application.init() internally).
+    // Flip the ready flag once it resolves so the skeleton can fade out.
+    kb.init(canvasRef.current).then(() => setPianoReady(true));
 
     const onNoteOn = (note: NoteEvent) => kb.noteOn(note, "playback");
     const onNoteOff = (note: NoteEvent) => kb.noteOff(note, "playback");
@@ -86,9 +92,10 @@ export function PianoKeyboardView() {
       showFingering: settings.showFingering,
       showHandColors: settings.showHandColors,
       useFlats: settings.useFlats,
-      customColors: settings.colorTheme === "custom"
-        ? settings.customColors
-        : COLOR_PRESET_VALUES[settings.colorTheme],
+      customColors:
+        settings.colorTheme === "custom"
+          ? settings.customColors
+          : COLOR_PRESET_VALUES[settings.colorTheme],
     });
   }, [
     settings.noteLabelMode,
@@ -110,9 +117,43 @@ export function PianoKeyboardView() {
         // matches the look of a real piano's wooden frame regardless of app theme.
         background: "#0d0d10",
         flexShrink: 0,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />
+      {/* Skeleton: matches the falling-notes pane above so the piano slot looks
+          like one continuous panel until PixiJS finishes drawing the keys.
+          We replicate the falling-notes background EXACTLY (base color + the same
+          purple radial gradient), but mirror the gradient anchor to `50% 0%` so the
+          brightest tint is at the TOP of the skeleton - meeting the brightest tint
+          at the BOTTOM of the falling-notes pane. Result: no color seam at the boundary.
+          Note: only this overlay's color matches the falling-notes pane - the piano
+          container's `#0d0d10` background (the dark "wooden frame" that shows through
+          key gaps after init) is intentionally NOT changed. */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(ellipse at 50% 0%, rgba(147,51,234,0.07) 0%, transparent 65%), " +
+            (settings.theme === "dark" ? "#141428" : "#eef1fa"),
+          opacity: pianoReady ? 0 : 1,
+          transition: "opacity 0.2s ease-out",
+          pointerEvents: "none",
+        }}
+      />
+      <canvas
+        ref={canvasRef}
+        style={{
+          display: "block",
+          width: "100%",
+          height: "100%",
+          position: "relative",
+          opacity: pianoReady ? 1 : 0,
+          transition: "opacity 0.15s ease-in",
+        }}
+      />
     </div>
   );
 }

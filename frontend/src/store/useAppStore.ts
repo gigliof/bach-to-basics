@@ -115,6 +115,8 @@ export interface AppState {
   isLoadingDocument: boolean;
   /** True while /fingering/generate is in flight */
   isGeneratingFingering: boolean;
+  /** True while /export/pdf is in flight (PDF rendering is the only async export) */
+  isExportingPdf: boolean;
   loadError: string | null;
   /** Non-null during slow imports (e.g. OMR) to show a descriptive message */
   loadingMessage: string | null;
@@ -139,6 +141,9 @@ export interface AppState {
   loadMusicXmlFile: (file: File) => Promise<void>;
   loadPdfFile: (file: File) => Promise<void>;
   generateFingering: () => Promise<void>;
+  exportMidi: () => void;
+  exportMusicXml: () => void;
+  exportPdf: () => Promise<void>;
   play: () => void;
   pause: () => void;
   stop: () => void;
@@ -155,13 +160,46 @@ export interface AppState {
   syncEngineState: () => void;
 }
 
+/** localStorage key for persisting the user's theme choice across reloads. */
+const THEME_STORAGE_KEY = "b2b-theme";
+
+/**
+ * Initial theme - the standard "system default + persisted override" pattern
+ * used by GitHub, Linear, Notion, Vercel, etc.:
+ *
+ *   1. If the user has previously toggled, honor that choice (localStorage)
+ *   2. Otherwise match the OS preference (`prefers-color-scheme: dark`)
+ *   3. Fall back to light
+ *
+ * Runs at module load (before React mounts) so the first paint is correct -
+ * no flash of wrong theme on reload.
+ */
+function getInitialTheme(): "dark" | "light" {
+  if (typeof window === "undefined") return "light";
+
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === "dark" || stored === "light") return stored;
+  } catch {
+    /* localStorage may throw in private/incognito mode */
+  }
+
+  try {
+    if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) return "dark";
+  } catch {
+    /* matchMedia not supported (very old browsers) */
+  }
+
+  return "light";
+}
+
 export const DEFAULT_SETTINGS: AppSettings = {
   showFingering: false,
   showFingeringOnNotes: false,
   showHandColors: true,
   useFlats: false,
   viewportSeconds: 4.0,
-  theme: "light",
+  theme: getInitialTheme(),
   activeHands: new Set(["left", "right"]),
   volume: 0.8,
   noteFilter: "all",
@@ -225,6 +263,7 @@ export const useAppStore = create<AppState>((set, get) => {
     document: null,
     isLoadingDocument: false,
     isGeneratingFingering: false,
+    isExportingPdf: false,
     loadError: null,
     loadingMessage: null,
     status: "stopped",
@@ -443,6 +482,58 @@ export const useAppStore = create<AppState>((set, get) => {
       }
     },
 
+    // ── Export ──────────────────────────────────────────────────────────────
+    // MIDI + MusicXML are blob-and-download from data we already have in memory.
+    // PDF requires a backend round-trip (music21 + LilyPond / Audiveris).
+    // MP3 is intentionally NOT here yet - it needs an OfflineAudioContext WAV
+    // pipeline which is a separate feature.
+
+    exportMidi: () => {
+      const { document: doc } = get();
+      if (!doc?.midiBuffer) return;
+      triggerDownload(
+        new Blob([doc.midiBuffer], { type: "audio/midi" }),
+        `${safeFilename(doc.title)}.midi`
+      );
+    },
+
+    exportMusicXml: () => {
+      const { document: doc } = get();
+      if (!doc?.musicXml) return;
+      triggerDownload(
+        new Blob([doc.musicXml], { type: "application/vnd.recordare.musicxml+xml" }),
+        `${safeFilename(doc.title)}.musicxml`
+      );
+    },
+
+    exportPdf: async () => {
+      const { document: doc } = get();
+      if (!doc?.musicXml) return;
+
+      set({ isExportingPdf: true, loadError: null });
+      try {
+        const res = await fetch("/api/export/pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ musicxml: doc.musicXml }),
+        });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { detail?: string };
+          throw new Error(body.detail ?? `Server error ${res.status}`);
+        }
+        const blob = await res.blob();
+        triggerDownload(blob, `${safeFilename(doc.title)}.pdf`);
+      } catch (err) {
+        // Use the backend's detail verbatim - it's already worded for the user.
+        // Don't prefix with "PDF export failed:" because the toast's warning icon
+        // already conveys the failure state and the backend message is descriptive.
+        const msg = err instanceof Error ? err.message : String(err);
+        set({ loadError: msg });
+      } finally {
+        set({ isExportingPdf: false });
+      }
+    },
+
     play: () => {
       const { settings, status } = get();
       // Speed trainer: seed the engine's current state before play
@@ -510,6 +601,16 @@ export const useAppStore = create<AppState>((set, get) => {
         syncEngine.setWaitForHand(patch.waitForHand);
       if ("renderOffset" in patch && patch.renderOffset !== undefined)
         syncEngine.setRenderOffset(patch.renderOffset);
+
+      // Persist theme choice across reloads. localStorage write is fire-and-forget;
+      // private/incognito mode can throw, in which case the choice just won't persist.
+      if ("theme" in patch && (patch.theme === "dark" || patch.theme === "light")) {
+        try {
+          window.localStorage.setItem(THEME_STORAGE_KEY, patch.theme);
+        } catch {
+          /* localStorage unavailable - ignore */
+        }
+      }
     },
 
     resetSettings: () => {
@@ -571,6 +672,27 @@ function parseMidiInWorker(buffer: ArrayBuffer, id: string, title: string): Prom
     };
     worker.postMessage({ buffer, id, title }, [buffer]);
   });
+}
+
+// ── Export helpers ────────────────────────────────────────────────────────────
+
+/** Make a string safe for use as a filename: strip path separators, control chars,
+ *  and characters disallowed on Windows. Browsers further sanitize on download. */
+function safeFilename(name: string): string {
+  return name.replace(/[\x00-\x1f\x7f/\\:*?"<>|]/g, "_").slice(0, 200) || "untitled";
+}
+
+/** Create an anchor, click it to trigger a download, then revoke the object URL. */
+function triggerDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  // Defer revoke - some browsers race the download otherwise.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // ── Fingering helpers ─────────────────────────────────────────────────────────

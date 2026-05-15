@@ -121,6 +121,16 @@ PDF to MusicXML uses [Audiveris](https://github.com/Audiveris/audiveris), an ope
 
 Without the JAR, MIDI / MusicXML import still works, only PDF import is unavailable.
 
+### Optional: PDF export via LilyPond
+
+PDF export uses [LilyPond](https://lilypond.org/) for typesetting. It's not bundled by default (heavy install, ~200 MB).
+
+- **macOS**: `brew install lilypond`
+- **Linux**: `sudo apt install lilypond`
+- **Docker**: add `lilypond` to `backend/Dockerfile`'s `apt-get install` line, then `docker compose build backend`
+
+Restart the backend after installing. Without LilyPond, MIDI and MusicXML export still work; only PDF export is unavailable.
+
 ## Using the app on iPad / iPhone (same network)
 
 1. In `frontend/vite.config.ts`, add `host: true` to the `server` block (or run `pnpm --filter frontend dev --host`)
@@ -197,7 +207,7 @@ The MIDI-to-MusicXML conversion runs on the backend. Check that the backend is u
 <details>
 <summary><strong>No sound from the on-screen piano</strong></summary>
 
-The first interaction (any click) wakes the audio context. If you still hear nothing, open DevTools > Console and look for errors related to `AudioContext` or sample fetches from `danigb.github.io` / `gleitz.github.io`. Some corporate networks block these CDNs.
+The first interaction (any click) wakes the audio context. If you still hear nothing, open DevTools > Console and look for errors related to `AudioContext` or sample fetches from `smpldsnds.github.io` / `gleitz.github.io`. Some corporate networks block these CDNs.
 
 </details>
 

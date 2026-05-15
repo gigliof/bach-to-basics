@@ -64,9 +64,25 @@ async def export_pdf(req: ExportPdfRequest, background_tasks: BackgroundTasks):
         )
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        # Surface actionable runtime errors (e.g. missing LilyPond) to the client
+        # so the user knows what to install instead of seeing a generic message.
+        # NOTE: musicxml_to_pdf runs in a ProcessPoolExecutor; exceptions get
+        # round-tripped through pickle, so we match by message substring rather
+        # than exception type (which can be wrapped / mutated on the way back).
         logger.exception("export_pdf failed")
-        raise HTTPException(status_code=500, detail="PDF export failed. Please try again.")
+        msg = str(e)
+        if "lilypond" in msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "PDF export needs LilyPond on the backend (not bundled by default).\n\n"
+                    "Quick install: brew install lilypond (macOS) or apt install lilypond "
+                    "(Linux). For Docker, see the README section 'Optional: PDF export via "
+                    "LilyPond'. MIDI and MusicXML export work without it."
+                ),
+            )
+        raise HTTPException(status_code=500, detail=f"PDF export failed: {msg or 'Unknown error'}")
 
 
 @router.post("/mp3")
