@@ -29,13 +29,15 @@ A browser-based piano practice tool. Drop in a **MIDI file**, a **MusicXML score
 - **MIDI** (`.mid`, `.midi`): parsed in a Web Worker, converted to MusicXML on the backend for sheet rendering
 - **MusicXML** (`.xml`, `.mxl`): both uncompressed and compressed (zip-style) variants
 - **PDF sheet music** (`.pdf`): optical music recognition via [Audiveris](https://github.com/Audiveris/audiveris) to MusicXML, then to MIDI (optional setup, see below)
+- **Audio recordings** (`.mp3`, `.wav`, `.m4a`, `.ogg`, `.flac`, `.aac`): audio-to-MIDI transcription via [Basic Pitch](https://github.com/spotify/basic-pitch) (optional setup, see below) - drop a recording of yourself improvising, get a playable piano roll
 
 Drag-and-drop anywhere on the window, or use the import button.
 
-> ⚠️ **A note on import accuracy.** Both PDF-to-MIDI (optical music recognition) and MIDI-to-sheet-music (notation reconstruction) are inherently lossy conversions. Expect some inconsistencies:
+> ⚠️ **A note on import accuracy.** PDF-to-MIDI (optical music recognition), MIDI-to-sheet-music (notation reconstruction), and audio-to-MIDI (pitch detection) are all inherently lossy conversions. Expect some inconsistencies:
 >
 > - **PDF imports** can mis-read notes, dynamics, ornaments, articulation, and voicing, especially with low-resolution scans, handwritten scores, or complex layouts. Audiveris is the best open-source OMR engine available, but no engine matches a careful human transcription.
 > - **MIDI imports** produce sheet music by re-deriving notation from raw note timings. MIDI doesn't encode key signatures, beaming, voicing, articulation, or enharmonic spelling, so the rendered sheet is an interpretation, not a faithful reproduction of the composer's original score.
+> - **Audio imports** detect pitches in the mixed signal - this is pitch-detection, not source separation. Quality is excellent on solo instruments (piano, voice, guitar) and degrades on complex mixes (full-band recordings with drums + bass + vocals). For multi-track sources, expect a rough sketch rather than a clean transcription. Solo piano recordings give the best results.
 >
 > For the cleanest sheet-music experience, import a **MusicXML** file (or `.mxl`) when you have one, which preserves full notation semantics end-to-end.
 
@@ -131,6 +133,16 @@ PDF export uses [LilyPond](https://lilypond.org/) for typesetting. It's not bund
 
 Restart the backend after installing. Without LilyPond, MIDI and MusicXML export still work; only PDF export is unavailable.
 
+### Optional: Audio-to-MIDI via Basic Pitch
+
+Audio-to-MIDI transcription uses [Basic Pitch](https://github.com/spotify/basic-pitch), Spotify's open-source pitch-detection model. It's not bundled by default because it pulls in TensorFlow (~500 MB) and has tight Python-version constraints.
+
+- **macOS**: requires Python **3.11** specifically. `brew install python@3.11`, then create a 3.11 venv at `backend/.venv` and `pip install -r backend/requirements-transcribe.txt`. (Python 3.12+ doesn't work on macOS because `basic-pitch` requires `tensorflow-macos<2.15.1`, and no compatible wheel exists for 3.12.)
+- **Linux**: Python 3.11 or 3.12. Activate the venv and `pip install -r backend/requirements-transcribe.txt`.
+- **Docker**: edit `backend/Dockerfile` to also `pip install -r requirements-transcribe.txt` (or use a separate build target), then `docker compose build backend`. The image already uses Python 3.12.
+
+Restart the backend after installing. Without Basic Pitch, MIDI / MusicXML / PDF import still works; only audio import (MP3, WAV, etc.) is unavailable.
+
 ## Using the app on iPad / iPhone (same network)
 
 1. In `frontend/vite.config.ts`, add `host: true` to the `server` block (or run `pnpm --filter frontend dev --host`)
@@ -189,9 +201,8 @@ Requires a Chromium-based browser (Chrome, Edge, Brave, Arc) for **Web MIDI API*
 
 The backend already exposes endpoints for several features that don't yet have UI hooks:
 
-- **Audio-to-MIDI transcription** via [Basic Pitch](https://github.com/spotify/basic-pitch) (`/transcribe/mp3`)
 - **YouTube-to-MIDI** via yt-dlp + Basic Pitch (`/youtube/extract`), sync data model already in place
-- **Export** to PDF / MP3 / MIDI / MusicXML (`/export/pdf`, `/export/mp3`)
+- **MP3 export** (MIDI / MusicXML / PDF export already shipped; MP3 needs an OfflineAudioContext WAV-render pipeline)
 
 These will become user-facing in upcoming releases. PRs welcome.
 

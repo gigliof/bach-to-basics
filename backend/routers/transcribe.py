@@ -158,6 +158,27 @@ async def transcribe_mp3(file: UploadFile, background_tasks: BackgroundTasks):
         )
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        # Surface actionable runtime errors (e.g. missing basic-pitch) to the
+        # client so the user knows what to install. Match by message substring
+        # since exceptions may be wrapped on the way back.
         logger.exception("transcribe_mp3 failed")
-        raise HTTPException(status_code=500, detail="Transcription failed. Please try again.")
+        msg = str(e)
+        # Only match the specific "not installed" sentinel - any other error
+        # that happens to mention basic-pitch (e.g. file paths inside the
+        # package, model-load failures) should NOT be wrongly reported as
+        # "needs install".
+        if "basic-pitch is not installed" in msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Audio-to-MIDI transcription needs Basic Pitch on the backend "
+                    "(not bundled by default).\n\n"
+                    "Quick install: with a Python 3.11 venv active on macOS (or 3.11/3.12 "
+                    "on Linux), run pip install -r backend/requirements-transcribe.txt. "
+                    "For Docker, see the README section 'Optional: Audio-to-MIDI via Basic Pitch'."
+                ),
+            )
+        raise HTTPException(
+            status_code=500, detail=f"Transcription failed: {msg or 'Unknown error'}"
+        )

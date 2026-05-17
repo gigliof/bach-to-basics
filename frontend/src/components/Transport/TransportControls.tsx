@@ -30,6 +30,7 @@ export function TransportControls() {
     loadMidiFile,
     loadMusicXmlFile,
     loadPdfFile,
+    loadAudioFile,
     isLoadingDocument,
     loadingMessage,
     exportMidi,
@@ -87,6 +88,7 @@ export function TransportControls() {
     if (file.name.match(/\.midi?$/i)) loadMidiFile(file);
     else if (file.name.match(/\.(xml|mxl)$/i)) loadMusicXmlFile(file);
     else if (file.name.match(/\.pdf$/i)) loadPdfFile(file);
+    else if (file.name.match(/\.(mp3|wav|m4a|ogg|flac|aac)$/i)) loadAudioFile(file);
   };
 
   const total = doc?.totalDuration ?? 0;
@@ -209,8 +211,8 @@ export function TransportControls() {
       >
         {/* ── Zone 1: File import - accent-styled to stand out ── */}
         <label
-          title="Open MIDI, MusicXML, or PDF sheet music"
-          aria-label="Import MIDI, MusicXML, or PDF file"
+          title="Open MIDI, MusicXML, PDF sheet music, or audio recording (MP3/WAV/etc.)"
+          aria-label="Import MIDI, MusicXML, PDF, or audio file"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -243,7 +245,7 @@ export function TransportControls() {
           )}
           <input
             type="file"
-            accept=".mid,.midi,.xml,.mxl,.pdf"
+            accept=".mid,.midi,.xml,.mxl,.pdf,.mp3,.wav,.m4a,.ogg,.flac,.aac"
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];

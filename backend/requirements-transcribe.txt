@@ -1,11 +1,26 @@
 # Optional audio-transcription dependencies (Basic Pitch).
-# Requires Python 3.11 or 3.12, tensorflow-macos doesn't yet support 3.13.
 #
-# To enable MP3 / audio-to-MIDI transcription:
-#   brew install python@3.12
-#   /opt/homebrew/bin/python3.12 -m venv .venv
+# Requires Python 3.11 on macOS. (basic-pitch's tensorflow-macos<2.15.1
+# constraint excludes 3.12+ - no compatible tensorflow-macos wheel exists.)
+# Linux is more flexible; 3.11 or 3.12 both work there.
+#
+# To enable MP3 / audio-to-MIDI transcription on macOS:
+#   brew install python@3.11
+#   /opt/homebrew/bin/python3.11 -m venv .venv
 #   source .venv/bin/activate
 #   pip install -r requirements-transcribe.txt
 #
 -r requirements.txt
-basic-pitch>=0.3.6
+
+# setuptools < 81 is required because basic-pitch's dependency `resampy`
+# still imports `pkg_resources`, which setuptools 81 (released 2025) removed
+# after years of deprecation. Until upstream resampy migrates to
+# `importlib.metadata`, we pin to the last setuptools major that ships
+# pkg_resources (80.x).
+setuptools<81
+
+# `[tf]` extra is REQUIRED since basic-pitch 0.4+ made the model backend opt-in.
+# Without it, basic-pitch installs but `predict()` fails (no TensorFlow to load
+# the ICASSP_2022_MODEL_PATH saved model). The `[onnx]` extra would be lighter
+# (~10 MB vs TF's ~500 MB) but our service uses the TF saved-model format.
+basic-pitch[tf]>=0.3.6

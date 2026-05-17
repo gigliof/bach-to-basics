@@ -32,6 +32,7 @@ export function PracticeView() {
     loadMidiFile,
     loadMusicXmlFile,
     loadPdfFile,
+    loadAudioFile,
     settings,
     updateSettings,
     status,
@@ -117,8 +118,9 @@ export function PracticeView() {
       if (file.name.match(/\.midi?$/i)) loadMidiFile(file);
       else if (file.name.match(/\.(xml|mxl)$/i)) loadMusicXmlFile(file);
       else if (file.name.match(/\.pdf$/i)) loadPdfFile(file);
+      else if (file.name.match(/\.(mp3|wav|m4a|ogg|flac|aac)$/i)) loadAudioFile(file);
     },
-    [loadMidiFile, loadMusicXmlFile, loadPdfFile]
+    [loadMidiFile, loadMusicXmlFile, loadPdfFile, loadAudioFile]
   );
 
   const handleDrop = useCallback(
@@ -265,40 +267,31 @@ export function PracticeView() {
         </div>
       </header>
 
-      {/* ── Main content - layout-aware ────────────────────────────────────── */}
+      {/* ── Main content - layout-aware ──────────────────────────────────────
+          PianoKeyboardView is a SINGLETON at the bottom of the main column so
+          PixiJS doesn't re-init on every view switch (skeleton flash + perf cost).
+          Same for FallingNotesView in falling/all modes - kept mounted across
+          the two modes that show it. Only the conditional top-content elements
+          (PianoModeBackground / SheetMusicView / sheet sidebar) mount and
+          unmount on layoutMode change. */}
       <main className="flex flex-1 overflow-hidden min-h-0 relative">
-        {layoutMode === "piano" && (
-          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            <PianoModeBackground />
-            <PianoKeyboardView />
-          </div>
-        )}
-        {layoutMode === "falling" && (
-          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            <FallingNotesView />
-            <PianoKeyboardView />
-          </div>
-        )}
-        {layoutMode === "sheet" && (
-          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            <SheetMusicView />
-            <PianoKeyboardView />
-          </div>
-        )}
+        {/* Optional sheet sidebar (only in "all" mode) */}
         {layoutMode === "all" && (
-          <>
-            <div
-              className="flex flex-col flex-shrink-0 min-h-0 overflow-hidden relative"
-              style={{ flex: "0 0 42%", minWidth: 260, maxWidth: 440 }}
-            >
-              <SheetMusicView />
-            </div>
-            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-              <FallingNotesView />
-              <PianoKeyboardView />
-            </div>
-          </>
+          <div
+            className="flex flex-col flex-shrink-0 min-h-0 overflow-hidden relative"
+            style={{ flex: "0 0 42%", minWidth: 260, maxWidth: 440 }}
+          >
+            <SheetMusicView />
+          </div>
         )}
+
+        {/* Main column: top content varies, piano persists across all modes */}
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          {layoutMode === "piano" && <PianoModeBackground />}
+          {(layoutMode === "falling" || layoutMode === "all") && <FallingNotesView />}
+          {layoutMode === "sheet" && <SheetMusicView />}
+          <PianoKeyboardView />
+        </div>
       </main>
 
       {/* ── Empty state overlay ────────────────────────────────────────────── */}
@@ -362,7 +355,7 @@ function EmptyState({ onImport }: { onImport: (file: File) => void }) {
           No file loaded
         </div>
         <div style={{ fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.6 }}>
-          Import a MIDI, MusicXML, or PDF sheet music file to start practicing
+          Import a MIDI, MusicXML, PDF sheet music, or audio recording to start practicing
         </div>
       </div>
 
@@ -406,7 +399,7 @@ function EmptyState({ onImport }: { onImport: (file: File) => void }) {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".mid,.midi,.xml,.mxl,.pdf"
+        accept=".mid,.midi,.xml,.mxl,.pdf,.mp3,.wav,.m4a,.ogg,.flac,.aac"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];

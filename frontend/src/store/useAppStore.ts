@@ -140,6 +140,7 @@ export interface AppState {
   loadMidiFile: (file: File) => Promise<void>;
   loadMusicXmlFile: (file: File) => Promise<void>;
   loadPdfFile: (file: File) => Promise<void>;
+  loadAudioFile: (file: File) => Promise<void>;
   generateFingering: () => Promise<void>;
   exportMidi: () => void;
   exportMusicXml: () => void;
@@ -431,6 +432,50 @@ export const useAppStore = create<AppState>((set, get) => {
         await syncEngine.loadDocument(finalDoc);
       } catch (err) {
         set({ loadError: String(err) });
+      } finally {
+        set({ isLoadingDocument: false, loadingMessage: null });
+      }
+    },
+
+    loadAudioFile: async (file: File) => {
+      const id = crypto.randomUUID();
+      const rawTitle = file.name.replace(/\.(mp3|wav|m4a|ogg|flac|aac)$/i, "");
+      const title = rawTitle.replace(/[\x00-\x1f\x7f/\\]/g, "").slice(0, 200) || "Untitled";
+
+      set({
+        isLoadingDocument: true,
+        loadingMessage: "Transcribing audio…",
+        loadError: null,
+      });
+
+      try {
+        const form = new FormData();
+        form.append("file", file, file.name);
+
+        // Basic Pitch can take 10-60 s on the backend; no client-side fetch
+        // timeout - the server's subprocess timeout is the effective limit.
+        const res = await fetch("/api/transcribe/mp3", { method: "POST", body: form });
+
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { detail?: string };
+          throw new Error(body.detail ?? `Server error ${res.status}`);
+        }
+
+        // Endpoint returns a raw MIDI file (audio/midi) - parse it through the
+        // same Web Worker pipeline as a regular .mid import.
+        const midiBuffer = await res.arrayBuffer();
+        const bufferForDoc = midiBuffer.slice(0);
+        const doc = await parseMidiInWorker(midiBuffer, id, title);
+
+        set({ document: { ...doc, midiBuffer: bufferForDoc } });
+        await syncEngine.loadDocument({ ...doc, midiBuffer: bufferForDoc });
+
+        // Kick off MusicXML transcription so the sheet-music view eventually
+        // populates, mirroring loadMidiFile's pattern. Fire-and-forget.
+        fetchMusicXml(bufferForDoc.slice(0), doc, id).catch(console.warn);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        set({ loadError: msg });
       } finally {
         set({ isLoadingDocument: false, loadingMessage: null });
       }
