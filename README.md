@@ -151,7 +151,7 @@ Restart the backend after installing. Without Basic Pitch, MIDI / MusicXML / PDF
 
 ⚠️ **Web MIDI is not available on iOS**, the on-screen keyboard works, but you cannot connect a hardware piano via USB or Bluetooth from iOS Safari. This is a WebKit limitation Apple has not addressed.
 
-## ⚠️ Public deployments
+## Public deployments
 
 If you're hosting Bach to Basics on the public internet (not on `localhost` or behind a VPN), set these env vars on the backend before exposing it:
 
