@@ -151,6 +151,17 @@ Restart the backend after installing. Without Basic Pitch, MIDI / MusicXML / PDF
 
 ⚠️ **Web MIDI is not available on iOS**, the on-screen keyboard works, but you cannot connect a hardware piano via USB or Bluetooth from iOS Safari. This is a WebKit limitation Apple has not addressed.
 
+## ⚠️ Public deployments
+
+If you're hosting Bach to Basics on the public internet (not on `localhost` or behind a VPN), set these env vars on the backend before exposing it:
+
+1. **`BACKEND_API_KEY`** - a long random value; clients must send `X-API-Key: <value>` on every request
+2. **`REQUIRE_AUTH=1`** - makes the backend refuse to start if `BACKEND_API_KEY` is not set (turns a silent log warning into a fail-fast)
+3. **`ALLOWED_ORIGINS`** - your exact frontend hostname only (e.g. `https://piano.example.com`), not `*`
+4. Run behind **HTTPS** (Web MIDI requires it anyway)
+
+Without these, the backend's expensive endpoints (audio transcription, PDF rendering, OMR, YouTube extraction) are open to the internet and can be abused.
+
 ## Configuration
 
 All backend settings come from environment variables. Copy `.env.example` to `.env` and edit.
