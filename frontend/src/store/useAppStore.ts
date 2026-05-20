@@ -115,8 +115,10 @@ export interface AppState {
   isLoadingDocument: boolean;
   /** True while /fingering/generate is in flight */
   isGeneratingFingering: boolean;
-  /** True while /export/pdf is in flight (PDF rendering is the only async export) */
+  /** True while /export/pdf is in flight (server-side LilyPond render) */
   isExportingPdf: boolean;
+  /** True while MP3 export is in flight (frontend offline-render → backend FFmpeg) */
+  isExportingMp3: boolean;
   loadError: string | null;
   /** Non-null during slow imports (e.g. OMR) to show a descriptive message */
   loadingMessage: string | null;
@@ -145,6 +147,7 @@ export interface AppState {
   exportMidi: () => void;
   exportMusicXml: () => void;
   exportPdf: () => Promise<void>;
+  exportMp3: () => Promise<void>;
   play: () => void;
   pause: () => void;
   stop: () => void;
@@ -265,6 +268,7 @@ export const useAppStore = create<AppState>((set, get) => {
     isLoadingDocument: false,
     isGeneratingFingering: false,
     isExportingPdf: false,
+    isExportingMp3: false,
     loadError: null,
     loadingMessage: null,
     status: "stopped",
@@ -579,6 +583,104 @@ export const useAppStore = create<AppState>((set, get) => {
       }
     },
 
+    exportMp3: async () => {
+      const { document: doc } = get();
+      if (!doc?.notes || doc.notes.length === 0) return;
+
+      set({ isExportingMp3: true, loadError: null });
+      try {
+        // Lazy-load smplr so this code path doesn't bloat the initial bundle
+        // for users who never export.
+        const { renderOffline, Smplr, Scheduler, HttpStorage, pianoToSmplrJson } =
+          await import("smplr");
+
+        // Tail buffer so the final note's release isn't cut off + small lead-in
+        // so the first note isn't clipped at sample 0.
+        const RENDER_TAIL_SEC = 1.5;
+        const RENDER_LEAD_SEC = 0.05;
+
+        const renderResult = await renderOffline(
+          async (ctx) => {
+            // === Working around a real bug in smplr's offline rendering ===
+            //
+            // smplr's default Scheduler uses setInterval to drain queued notes
+            // whose `time` is outside its 200ms lookahead window. setInterval
+            // callbacks NEVER fire during synchronous OfflineAudioContext
+            // rendering, so any note past 200ms would be silently discarded
+            // (you'd get a long silent WAV with only the very first beats
+            // audible). The README's renderOffline example has the same bug.
+            //
+            // Workaround: construct our own Scheduler with a huge lookahead
+            // (effectively infinite) so EVERY note falls within the synchronous
+            // dispatch branch in Scheduler.schedule(). Then we bypass the
+            // SplendidGrandPiano wrapper (which doesn't forward `scheduler` to
+            // its internal Smplr) and instantiate Smplr directly with the
+            // piano's JSON config + our scheduler.
+            //
+            // v1: always render with SplendidGrandPiano regardless of the
+            // currently-selected live instrument. 99% of users are on the
+            // default "grand" anyway; we can extend per-instrument later.
+            const scheduler = new Scheduler(ctx, { lookaheadMs: 86_400_000 });
+            // pianoToSmplrJson only takes piano-shape options. The storage
+            // backend belongs in the Smplr constructor's options (where the
+            // SplendidGrandPiano wrapper also passes it). HttpStorage is a
+            // const singleton, not a class - no `new`.
+            const json = pianoToSmplrJson({
+              baseUrl: "https://smpldsnds.github.io/sfzinstruments-splendid-grand-piano/samples",
+              detune: 0,
+              decayTime: 0.5,
+            });
+            const player = new Smplr(ctx, json, { scheduler, storage: HttpStorage });
+            await player.load;
+
+            // Schedule every note. velocity/duration straight from the doc;
+            // we ignore current tempoMultiplier/transpose/hand-volume on
+            // purpose - MP3 export is "render the score as-written", not
+            // "render my current practice settings".
+            for (const note of doc.notes) {
+              player.start({
+                note: note.midi,
+                velocity: note.velocity,
+                time: RENDER_LEAD_SEC + note.startSeconds,
+                duration: Math.max(0.05, note.endSeconds - note.startSeconds),
+              });
+            }
+          },
+          {
+            sampleRate: 44100,
+            channels: 2,
+            duration: RENDER_LEAD_SEC + doc.totalDuration + RENDER_TAIL_SEC,
+          }
+        );
+
+        // Encode the AudioBuffer as 16-bit WAV - half the size of float32, the
+        // codec FFmpeg expects, and well within the backend's 200 MB cap for
+        // any practical song length. smplr returns a Blob; we need raw bytes
+        // for base64 encoding.
+        const wavBlob = renderResult.toWav16();
+        const wavBuffer = await wavBlob.arrayBuffer();
+        const wavBase64 = arrayBufferToBase64(wavBuffer);
+
+        const res = await fetch("/api/export/mp3", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ wav_base64: wavBase64 }),
+        });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { detail?: string };
+          throw new Error(body.detail ?? `Server error ${res.status}`);
+        }
+
+        const blob = await res.blob();
+        triggerDownload(blob, `${safeFilename(doc.title)}.mp3`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        set({ loadError: msg });
+      } finally {
+        set({ isExportingMp3: false });
+      }
+    },
+
     play: () => {
       const { settings, status } = get();
       // Speed trainer: seed the engine's current state before play
@@ -725,6 +827,19 @@ function parseMidiInWorker(buffer: ArrayBuffer, id: string, title: string): Prom
  *  and characters disallowed on Windows. Browsers further sanitize on download. */
 function safeFilename(name: string): string {
   return name.replace(/[\x00-\x1f\x7f/\\:*?"<>|]/g, "_").slice(0, 200) || "untitled";
+}
+
+/** Encode a Uint8Array / ArrayBuffer as a standard base64 string.
+ *  Chunked to avoid `String.fromCharCode(...veryLongArray)` blowing the call
+ *  stack on large WAV exports (a 5-min stereo render is ~26 MB). */
+function arrayBufferToBase64(buffer: Uint8Array | ArrayBuffer): string {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  const CHUNK = 0x8000; // 32 KB
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+  }
+  return btoa(binary);
 }
 
 /** Create an anchor, click it to trigger a download, then revoke the object URL. */

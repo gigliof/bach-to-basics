@@ -36,7 +36,9 @@ export function TransportControls() {
     exportMidi,
     exportMusicXml,
     exportPdf,
+    exportMp3,
     isExportingPdf,
+    isExportingMp3,
   } = useAppStore();
 
   const [speedOpen, setSpeedOpen] = useState(false);
@@ -290,7 +292,7 @@ export function TransportControls() {
               if (doc) (e.currentTarget as HTMLElement).style.background = "rgba(147,51,234,0.14)";
             }}
           >
-            {isExportingPdf ? <SpinnerIcon /> : <DownloadIcon />}
+            {isExportingPdf || isExportingMp3 ? <SpinnerIcon /> : <DownloadIcon />}
           </button>
           {exportOpen && exportRect && (
             <div
@@ -341,6 +343,18 @@ export function TransportControls() {
                 }}
                 disabledReason={
                   !doc?.musicXml ? "No MusicXML data in this document" : "Already rendering a PDF"
+                }
+              />
+              <ExportMenuItem
+                label="MP3 audio"
+                sublabel={isExportingMp3 ? "rendering..." : ".mp3"}
+                enabled={!!doc?.notes?.length && !isExportingMp3}
+                onClick={() => {
+                  void exportMp3();
+                  setExportOpen(false);
+                }}
+                disabledReason={
+                  !doc?.notes?.length ? "No notes to render" : "Already rendering an MP3"
                 }
               />
             </div>

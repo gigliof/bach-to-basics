@@ -48,4 +48,4 @@ Use **GitHub's private vulnerability reporting**:
 2. Click **"Report a vulnerability"**
 3. Fill in the details - steps to reproduce, impact, any suggested fix
 
-You'll get a response within a few days. There's no formal embargo policy given the nature of this project, but please give a reasonable heads-up before going public.
+Reports are handled by a single maintainer in personal time, so response times vary.

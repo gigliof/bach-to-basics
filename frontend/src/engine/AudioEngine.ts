@@ -18,25 +18,48 @@ export const INSTRUMENT_LABELS: Record<InstrumentId, string> = {
   honkytonk: "Honky",
 };
 
-// Minimal common interface shared by all smplr players
-type Player = {
+// Minimal common interface shared by all smplr players. Exported so the
+// MP3 export pipeline can type the offline-rendering player the same way.
+export type Player = {
   load: Promise<unknown>;
-  start(opts: { note: number; velocity?: number; stopId?: number | string }): unknown;
+  /** `time` (seconds, relative to ctx.currentTime) + `duration` enable
+   *  offline batch rendering - if omitted, the note plays immediately. */
+  start(opts: {
+    note: number;
+    velocity?: number;
+    stopId?: number | string;
+    time?: number;
+    duration?: number;
+  }): unknown;
   stop(opts?: { stopId?: number | string }): void;
 };
 
-function createPlayer(id: InstrumentId, ctx: AudioContext): Player {
+/**
+ * Build a smplr player for the given instrument against any AudioContext-like.
+ * Exported (not local) so the MP3 export pipeline can reuse it for an
+ * OfflineAudioContext - same sample set / same instrument as live playback,
+ * which is critical for the rendered audio to match what the user hears.
+ *
+ * Accepts `BaseAudioContext` (the common parent of both AudioContext and
+ * OfflineAudioContext) rather than `AudioContext` alone, so callers can pass
+ * an offline context for batch rendering. The smplr classes accept either.
+ */
+export function createPlayer(id: InstrumentId, ctx: BaseAudioContext): Player {
   switch (id) {
     case "grand":
-      return new SplendidGrandPiano(ctx) as unknown as Player;
+      return new SplendidGrandPiano(ctx as AudioContext) as unknown as Player;
     case "bright":
-      return new Soundfont(ctx, { instrument: "bright_acoustic_piano" }) as unknown as Player;
+      return new Soundfont(ctx as AudioContext, {
+        instrument: "bright_acoustic_piano",
+      }) as unknown as Player;
     case "electric":
-      return new ElectricPiano(ctx, { instrument: "CP80" }) as unknown as Player;
+      return new ElectricPiano(ctx as AudioContext, { instrument: "CP80" }) as unknown as Player;
     case "harpsichord":
-      return new Soundfont(ctx, { instrument: "harpsichord" }) as unknown as Player;
+      return new Soundfont(ctx as AudioContext, { instrument: "harpsichord" }) as unknown as Player;
     case "honkytonk":
-      return new Soundfont(ctx, { instrument: "honkytonk_piano" }) as unknown as Player;
+      return new Soundfont(ctx as AudioContext, {
+        instrument: "honkytonk_piano",
+      }) as unknown as Player;
   }
 }
 

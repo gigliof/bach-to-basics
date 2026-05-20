@@ -65,6 +65,15 @@ Drag-and-drop anywhere on the window, or use the import button.
 - **MIDI input** via Web MIDI: connect a hardware keyboard (Roland, Yamaha, etc.); your input lights up the on-screen keys and drives wait mode
 - **Tempo control**: 25%-200% with snap-back to 100%
 
+### Export
+
+Save the loaded piece in any of these formats via the Export button (next to Import):
+
+- **MIDI** (`.midi`) - the raw note data
+- **MusicXML** (`.musicxml`) - full notation, opens in any score editor
+- **PDF sheet music** (`.pdf`) - typeset via LilyPond (optional backend setup, see below)
+- **MP3 audio** (`.mp3`) - rendered with the Splendid Grand Piano via an OfflineAudioContext (other instruments to follow; the grand covers the common case)
+
 ### Look & feel
 
 - **Color themes**: Cascade, Violet, Classic, Ocean, Forest, or fully custom (left/right/unknown hand colors)
@@ -213,7 +222,6 @@ Requires a Chromium-based browser (Chrome, Edge, Brave, Arc) for **Web MIDI API*
 The backend already exposes endpoints for several features that don't yet have UI hooks:
 
 - **YouTube-to-MIDI** via yt-dlp + Basic Pitch (`/youtube/extract`), sync data model already in place
-- **MP3 export** (MIDI / MusicXML / PDF export already shipped; MP3 needs an OfflineAudioContext WAV-render pipeline)
 
 These will become user-facing in upcoming releases. PRs welcome.
 
