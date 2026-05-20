@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Bach to Basics - browser-based piano learning app with falling notes, sheet music, and MIDI support",
   "author": "gigliof",
   "license": "MIT",
