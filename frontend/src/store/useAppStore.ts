@@ -591,8 +591,7 @@ export const useAppStore = create<AppState>((set, get) => {
       try {
         // Lazy-load smplr so this code path doesn't bloat the initial bundle
         // for users who never export.
-        const { renderOffline, Smplr, Scheduler, HttpStorage, pianoToSmplrJson } =
-          await import("smplr");
+        const { renderOffline, Scheduler, SplendidGrandPiano } = await import("smplr");
 
         // Tail buffer so the final note's release isn't cut off + small lead-in
         // so the first note isn't clipped at sample 0.
@@ -612,25 +611,16 @@ export const useAppStore = create<AppState>((set, get) => {
             //
             // Workaround: construct our own Scheduler with a huge lookahead
             // (effectively infinite) so EVERY note falls within the synchronous
-            // dispatch branch in Scheduler.schedule(). Then we bypass the
-            // SplendidGrandPiano wrapper (which doesn't forward `scheduler` to
-            // its internal Smplr) and instantiate Smplr directly with the
-            // piano's JSON config + our scheduler.
+            // dispatch branch in Scheduler.schedule(). smplr 0.24's
+            // SplendidGrandPiano options now accept SmplrOptions (including
+            // `scheduler`), so we pass it directly to the wrapper rather than
+            // bypassing to the low-level Smplr class.
             //
             // v1: always render with SplendidGrandPiano regardless of the
             // currently-selected live instrument. 99% of users are on the
             // default "grand" anyway; we can extend per-instrument later.
             const scheduler = new Scheduler(ctx, { lookaheadMs: 86_400_000 });
-            // pianoToSmplrJson only takes piano-shape options. The storage
-            // backend belongs in the Smplr constructor's options (where the
-            // SplendidGrandPiano wrapper also passes it). HttpStorage is a
-            // const singleton, not a class - no `new`.
-            const json = pianoToSmplrJson({
-              baseUrl: "https://smpldsnds.github.io/sfzinstruments-splendid-grand-piano/samples",
-              detune: 0,
-              decayTime: 0.5,
-            });
-            const player = new Smplr(ctx, json, { scheduler, storage: HttpStorage });
+            const player = new SplendidGrandPiano(ctx, { scheduler });
             await player.load;
 
             // Schedule every note. velocity/duration straight from the doc;
