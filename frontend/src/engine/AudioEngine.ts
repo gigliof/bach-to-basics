@@ -1,4 +1,3 @@
-import { SplendidGrandPiano, Soundfont, ElectricPiano } from "smplr";
 import type { NoteEvent } from "@bach-to-basics/shared";
 
 // ── Instrument catalogue ──────────────────────────────────────────────────────
@@ -36,15 +35,19 @@ export type Player = {
 
 /**
  * Build a smplr player for the given instrument against any AudioContext-like.
- * Exported (not local) so the MP3 export pipeline can reuse it for an
- * OfflineAudioContext - same sample set / same instrument as live playback,
- * which is critical for the rendered audio to match what the user hears.
+ *
+ * smplr is imported DYNAMICALLY here (not at module top level) so it lands in
+ * its own lazy chunk instead of the main bundle. The piano keyboard (PixiJS),
+ * falling notes, and sheet music don't need smplr to render, so keeping it out
+ * of the critical path lets the first paint happen much sooner. smplr only
+ * loads on the first audio interaction (pre-warm on mount, or first note).
  *
  * Accepts `BaseAudioContext` (the common parent of both AudioContext and
- * OfflineAudioContext) rather than `AudioContext` alone, so callers can pass
- * an offline context for batch rendering. The smplr classes accept either.
+ * OfflineAudioContext) so callers can pass an offline context for batch
+ * rendering. The smplr classes accept either.
  */
-export function createPlayer(id: InstrumentId, ctx: BaseAudioContext): Player {
+export async function createPlayer(id: InstrumentId, ctx: BaseAudioContext): Promise<Player> {
+  const { SplendidGrandPiano, Soundfont, ElectricPiano } = await import("smplr");
   switch (id) {
     case "grand":
       return new SplendidGrandPiano(ctx as AudioContext) as unknown as Player;
@@ -79,7 +82,7 @@ export class AudioEngine {
     this._loadPromise = (async () => {
       try {
         if (!this.ctx) this.ctx = new AudioContext();
-        this.player = createPlayer(this._currentId, this.ctx);
+        this.player = await createPlayer(this._currentId, this.ctx);
         await this.player.load;
         this._loaded = true;
       } catch (err) {
