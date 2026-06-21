@@ -5,30 +5,30 @@ import type { CustomColors, NoteLabelMode } from "../../store/useAppStore";
 import { lighten, hexToNum } from "../../utils/colorUtils";
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const MIDI_MIN = 21;  // A0
+const MIDI_MIN = 21; // A0
 const MIDI_MAX = 108; // C8
 
-function isWhite(midi: number) { return !isBlackKey(midi); }
-const WHITE_COUNT = Array.from({ length: MIDI_MAX - MIDI_MIN + 1 }, (_, i) => MIDI_MIN + i)
-  .filter(isWhite).length;
+function isWhite(midi: number) {
+  return !isBlackKey(midi);
+}
+const WHITE_COUNT = Array.from({ length: MIDI_MAX - MIDI_MIN + 1 }, (_, i) => MIDI_MIN + i).filter(
+  isWhite
+).length;
 
 // ── Color tokens ──────────────────────────────────────────────────────────────
-const C_WHITE_TOP     = 0xc4c4bc; // subtle shadow at key hinge
-const C_WHITE_MID     = 0xf5f5f0; // main key face
-const C_WHITE_BTM     = 0xe4e4dc; // front edge shadow
-const C_BLACK_TOP     = 0x2c2c38; // top of black key
-const C_BLACK_MID     = 0x181820; // main body
-const C_BLACK_BTM     = 0x363644; // slight gloss at bottom
+const C_WHITE_TOP = 0xc4c4bc; // subtle shadow at key hinge
+const C_WHITE_MID = 0xf5f5f0; // main key face
+const C_WHITE_BTM = 0xe4e4dc; // front edge shadow
 
-const C_BORDER        = 0x9a9a90;
-const C_LABEL         = 0x6b7280;
-const C_FINGER        = 0xffffff;
+const C_BORDER = 0x9a9a90;
+const C_LABEL = 0x6b7280;
+const C_FINGER = 0xffffff;
 
 // Active state colors (hand-aware)
-const C_PLAYBACK      = 0x6366f1;
-const C_INPUT         = 0x22c55e;
-const C_LEFT          = 0x3b82f6;
-const C_RIGHT         = 0xef4444;
+const C_PLAYBACK = 0x6366f1;
+const C_INPUT = 0x22c55e;
+const C_LEFT = 0x3b82f6;
+const C_RIGHT = 0xef4444;
 
 // ── Gradient factory ──────────────────────────────────────────────────────────
 function lg(stops: Array<[number, number | string]>): PIXI.FillGradient {
@@ -52,21 +52,55 @@ function whiteKeyColors(ivory: boolean): { top: number; mid: number; btm: number
 const GRAD = {
   whiteNormal: (ivory: boolean) => {
     const c = whiteKeyColors(ivory);
-    return lg([[0, c.top], [0.07, c.mid], [0.88, c.mid], [1, c.btm]]);
+    return lg([
+      [0, c.top],
+      [0.07, c.mid],
+      [0.88, c.mid],
+      [1, c.btm],
+    ]);
   },
-  blackNormal: () => lg([[0, C_BLACK_TOP], [0.35, C_BLACK_MID], [0.88, C_BLACK_MID], [1, C_BLACK_BTM]]),
-  activeWhite: (base: number) => lg([
-    [0,    0x050508],            // deep hinge shadow
-    [0.12, lighten(base, 0.58)],
-    [0.22, base],
-    [0.83, base],
-    [1,    lighten(base, 1.45)], // bright front lip
-  ]),
-  activeBlack: (base: number) => lg([
-    [0, lighten(base, 0.6)],
-    [0.5, base],
-    [1,   lighten(base, 1.5)],
-  ]),
+  // Horizontal overlay: soft shadow down each side, transparent in the middle.
+  // Overlaid on the (vertical) white-key gradient, it makes each white key read
+  // as rounded / raised instead of a flat slab - the main "fuller, more real"
+  // cue (black keys sit between white keys and cast a soft shadow onto them).
+  whiteSideShade: () =>
+    new PIXI.FillGradient({
+      type: "linear",
+      start: { x: 0, y: 0 },
+      end: { x: 1, y: 0 },
+      textureSpace: "local",
+      colorStops: [
+        { offset: 0, color: "rgba(0,0,0,0.10)" },
+        { offset: 0.16, color: "rgba(0,0,0,0)" },
+        { offset: 0.84, color: "rgba(0,0,0,0)" },
+        { offset: 1, color: "rgba(0,0,0,0.10)" },
+      ],
+    }),
+  // Subtle dimension via the gradient alone: a soft sheen at the top, dark
+  // body, and a slightly lighter "front lip" at the bottom so the key isn't a
+  // flat 100% black slab. (Kept restrained - stronger glossy/face attempts read
+  // as plasticky on our renderer.)
+  blackNormal: () =>
+    lg([
+      [0, 0x34343f], // top sheen - catches a bit of light
+      [0.18, 0x1c1c24],
+      [0.82, 0x141419], // darkest part of the body
+      [1, 0x3a3a46], // lighter front lip at the bottom
+    ]),
+  activeWhite: (base: number) =>
+    lg([
+      [0, 0x050508], // deep hinge shadow
+      [0.12, lighten(base, 0.58)],
+      [0.22, base],
+      [0.83, base],
+      [1, lighten(base, 1.45)], // bright front lip
+    ]),
+  activeBlack: (base: number) =>
+    lg([
+      [0, lighten(base, 0.6)],
+      [0.5, base],
+      [1, lighten(base, 1.5)],
+    ]),
 };
 
 export interface PianoKeyboardOptions {
@@ -96,10 +130,10 @@ export class PianoKeyboard {
   private _initialized = false;
 
   private keyContainers = new Map<number, PIXI.Container>();
-  private keys          = new Map<number, PIXI.Graphics>();
-  private keyLabels     = new Map<number, PIXI.Text>();
-  private fingerLabels  = new Map<number, PIXI.Text>();
-  private keyStates     = new Map<number, KeyState>();
+  private keys = new Map<number, PIXI.Graphics>();
+  private keyLabels = new Map<number, PIXI.Text>();
+  private fingerLabels = new Map<number, PIXI.Text>();
+  private keyStates = new Map<number, KeyState>();
   private opts: PianoKeyboardOptions;
 
   private whiteW = 0;
@@ -151,7 +185,7 @@ export class PianoKeyboard {
     this.whiteW = width / WHITE_COUNT;
     this.whiteH = height;
     this.blackW = this.whiteW * 0.58;
-    this.blackH = height * 0.60;
+    this.blackH = height * 0.6;
 
     let wi = 0;
     for (let midi = MIDI_MIN; midi <= MIDI_MAX; midi++) {
@@ -169,7 +203,7 @@ export class PianoKeyboard {
   }
 
   private drawKeys() {
-    const root       = new PIXI.Container();
+    const root = new PIXI.Container();
     const whiteLayer = new PIXI.Container();
     const blackLayer = new PIXI.Container();
 
@@ -192,9 +226,7 @@ export class PianoKeyboard {
       // Note label (created for every key; text/visibility set by noteLabelMode)
       {
         const labelStr = this.noteLabel(midi);
-        const lFontSz = white
-          ? Math.max(7, this.whiteW * 0.42)
-          : Math.max(6, this.blackW * 0.55);
+        const lFontSz = white ? Math.max(7, this.whiteW * 0.42) : Math.max(6, this.blackW * 0.55);
         const label = new PIXI.Text({
           text: labelStr,
           style: {
@@ -244,7 +276,10 @@ export class PianoKeyboard {
         }
         // Hover highlight
         const st = this.keyStates.get(midi);
-        if (st && !st.hovered) { st.hovered = true; this.redrawKey(midi); }
+        if (st && !st.hovered) {
+          st.hovered = true;
+          this.redrawKey(midi);
+        }
       });
       container.on("pointerout", () => {
         if (this.dragKeys.has(midi)) {
@@ -253,15 +288,24 @@ export class PianoKeyboard {
         }
         // Remove hover highlight
         const st = this.keyStates.get(midi);
-        if (st && st.hovered) { st.hovered = false; this.redrawKey(midi); }
+        if (st && st.hovered) {
+          st.hovered = false;
+          this.redrawKey(midi);
+        }
       });
 
       this.keys.set(midi, g);
       this.keyContainers.set(midi, container);
-      this.keyStates.set(midi, { playbackActive: false, inputActive: false, hand: null, finger: null, hovered: false });
+      this.keyStates.set(midi, {
+        playbackActive: false,
+        inputActive: false,
+        hand: null,
+        finger: null,
+        hovered: false,
+      });
 
       if (white) whiteLayer.addChild(container);
-      else       blackLayer.addChild(container);
+      else blackLayer.addChild(container);
     }
 
     root.addChild(whiteLayer, blackLayer);
@@ -272,18 +316,22 @@ export class PianoKeyboard {
 
   private getGrad(key: string, factory: () => PIXI.FillGradient): PIXI.FillGradient {
     let g = this.gradCache.get(key);
-    if (!g) { g = factory(); this.gradCache.set(key, g); }
+    if (!g) {
+      g = factory();
+      this.gradCache.set(key, g);
+    }
     return g;
   }
 
   private paintKey(
     g: PIXI.Graphics,
-    w: number, h: number,
+    w: number,
+    h: number,
     white: boolean,
     active: boolean,
     activeColor: number | null,
     _hand: "left" | "right" | null,
-    hovered = false,
+    hovered = false
   ) {
     g.clear();
     const r = white ? 4 : 3;
@@ -311,12 +359,18 @@ export class PianoKeyboard {
     if (active && white) {
       // Keybed shadow strip at bottom (felt bumper contact)
       g.rect(1, h - 4, w - 2, 4);
-      g.fill({ color: 0x000000, alpha: 0.40 });
+      g.fill({ color: 0x000000, alpha: 0.4 });
       // Side edge depth shadows
       g.rect(0.5, h * 0.08, 2, h * 0.88);
-      g.fill({ color: 0x000000, alpha: 0.10 });
+      g.fill({ color: 0x000000, alpha: 0.1 });
       g.rect(w - 2.5, h * 0.08, 2, h * 0.88);
-      g.fill({ color: 0x000000, alpha: 0.10 });
+      g.fill({ color: 0x000000, alpha: 0.1 });
+    }
+
+    // ── Inactive white key: soft side shading for a rounded, fuller look ────
+    if (white && !active) {
+      g.roundRect(0.5, 0.5, w - 1, h - 1, r);
+      g.fill(this.getGrad("wshade", GRAD.whiteSideShade));
     }
 
     // White highlight strip at top of active black keys
@@ -355,14 +409,14 @@ export class PianoKeyboard {
   }
 
   private redrawKey(midi: number) {
-    const g     = this.keys.get(midi);
+    const g = this.keys.get(midi);
     const state = this.keyStates.get(midi);
-    const cont  = this.keyContainers.get(midi);
+    const cont = this.keyContainers.get(midi);
     if (!g || !state || !cont) return;
 
-    const white  = isWhite(midi);
-    const w      = white ? this.whiteW : this.blackW;
-    const h      = white ? this.whiteH : this.blackH;
+    const white = isWhite(midi);
+    const w = white ? this.whiteW : this.blackW;
+    const h = white ? this.whiteH : this.blackH;
     const active = state.playbackActive || state.inputActive;
 
     // 3D press: shift container down when active
@@ -373,9 +427,14 @@ export class PianoKeyboard {
     if (active) {
       const cc = this.opts.customColors;
       if (this.opts.showHandColors && state.hand) {
-        color = state.hand === "left"
-          ? (cc ? hexToNum(cc.leftHand)  : C_LEFT)
-          : (cc ? hexToNum(cc.rightHand) : C_RIGHT);
+        color =
+          state.hand === "left"
+            ? cc
+              ? hexToNum(cc.leftHand)
+              : C_LEFT
+            : cc
+              ? hexToNum(cc.rightHand)
+              : C_RIGHT;
       } else if (state.inputActive) {
         color = C_INPUT;
       } else {
@@ -402,7 +461,7 @@ export class PianoKeyboard {
       return midi % 12 === 0 ? midiToPitch(midi, this.opts.useFlats) : "";
     }
     if (mode === "white" && !white) return "";
-    if (mode === "black" && white)  return "";
+    if (mode === "black" && white) return "";
     // "white", "black", "all": show note name class only (no octave)
     return midiToNoteName(midi, this.opts.useFlats);
   }
@@ -414,7 +473,7 @@ export class PianoKeyboard {
     if (!state) return;
     if (source === "playback") {
       state.playbackActive = true;
-      state.hand = note.hand === "unknown" ? null : note.hand as "left" | "right";
+      state.hand = note.hand === "unknown" ? null : (note.hand as "left" | "right");
       state.finger = note.finger;
     } else {
       state.inputActive = true;
@@ -427,7 +486,10 @@ export class PianoKeyboard {
     if (!state) return;
     if (source === "playback") {
       state.playbackActive = false;
-      if (!state.inputActive) { state.hand = null; state.finger = null; }
+      if (!state.inputActive) {
+        state.hand = null;
+        state.finger = null;
+      }
     } else {
       state.inputActive = false;
     }
@@ -463,11 +525,10 @@ export class PianoKeyboard {
   }
 
   setOptions(opts: Partial<PianoKeyboardOptions>) {
-    const needsFullRebuild = (
-      ("pianoTheme"    in opts && opts.pianoTheme    !== this.opts.pianoTheme) ||
+    const needsFullRebuild =
+      ("pianoTheme" in opts && opts.pianoTheme !== this.opts.pianoTheme) ||
       ("noteLabelMode" in opts && opts.noteLabelMode !== this.opts.noteLabelMode) ||
-      ("useFlats"      in opts && opts.useFlats      !== this.opts.useFlats)
-    );
+      ("useFlats" in opts && opts.useFlats !== this.opts.useFlats);
 
     Object.assign(this.opts, opts);
 

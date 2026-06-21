@@ -170,9 +170,13 @@ export function FallingNotesView() {
       onWheel={handleWheel}
       style={{
         minHeight: 200,
+        // In "all" the parent column carries one continuous glow (so sheet +
+        // falling read as one surface, no seam). Other modes paint their own.
         background:
-          "radial-gradient(ellipse at 50% 100%, rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)",
-        borderTop: "1px solid var(--color-notes-border)",
+          settings.layoutMode === "all"
+            ? "transparent"
+            : "radial-gradient(ellipse at 50% 100%, rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)",
+        borderTop: settings.layoutMode === "all" ? "none" : "1px solid var(--color-notes-border)",
       }}
     >
       <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />

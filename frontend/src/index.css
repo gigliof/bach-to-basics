@@ -297,9 +297,10 @@ input[type="range"]::-moz-range-progress {
   border-radius: 1px;
 }
 
-/* Bar cursor - wider semi-transparent highlight for the current measure */
+/* Bar cursor - the "spotlight" highlight on the current measure. Slightly more
+   prominent than a hairline so it's easy to track while following along. */
 .at-cursor-bar {
-  background: rgba(147, 51, 234, 0.12);
+  background: rgba(147, 51, 234, 0.16);
   border-radius: 2px;
 }
 

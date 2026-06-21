@@ -25,6 +25,11 @@ export function SheetMusicView() {
   const scoreLoaded = useRef(false); // true once score SVG is rendered
   const lastScrollTop = useRef(-1);
   const lastScrollMs = useRef(0);
+  // Horizontal "all" mode: a rAF lerp loop slides scrollLeft toward this target
+  // every frame for continuous, buttery score-following (instead of stepped
+  // bar-to-bar jumps). onTick updates the target; the loop animates toward it.
+  const scrollTargetRef = useRef(0);
+  const rafScrollId = useRef<number | null>(null);
 
   // ── AlphaTab init (runs once on mount) ──────────────────────────────────
   useEffect(() => {
@@ -34,11 +39,22 @@ export function SheetMusicView() {
     import("@coderline/alphatab").then(({ AlphaTabApi }) => {
       if (!containerRef.current) return;
 
+      // In the "all" view the sheet sits in a full-width band at the top and
+      // renders as a single horizontal strip (layoutMode 1) that scrolls
+      // left->right following playback. The dedicated "Sheet" mode keeps page
+      // mode (vertical, multi-line) which is better for reading a full score.
+      // SheetMusicView mounts fresh per layout mode (not a singleton), so reading
+      // the mode once at init is safe for this instance's lifetime.
+      const horizontal = useAppStore.getState().settings.layoutMode === "all";
+
       const api = new AlphaTabApi(containerRef.current, {
         core: { engine: "svg", enableLazyLoading: false, logLevel: 0 },
         display: {
-          layoutMode: 0, // page mode - vertical scroll
-          scale: 0.9,
+          layoutMode: horizontal ? 1 : 0, // 1 = horizontal strip, 0 = page (vertical)
+          // Smaller scale in the horizontal "all" band so the full grand staff
+          // (both clefs) fits the short band height without the bass clef being
+          // clipped. Page mode keeps the larger, more readable 0.9.
+          scale: horizontal ? 0.62 : 0.9,
           // stretchForce 0 = notes keep their natural rhythmic proportions (like
           // a printed score).  A very small value (0.1) avoids a ragged right
           // edge on the last system without visibly compressing the spacing.
@@ -102,6 +118,32 @@ export function SheetMusicView() {
         /* ignore */
       }
 
+      // ── Continuous horizontal scroll loop (lerp toward scrollTargetRef) ────
+      // In horizontal mode the strip glides smoothly under the cursor instead of
+      // jumping bar to bar. The 0.12 factor is a gentle chase (~0.13s) that also
+      // averages out the ~8 fps cursor steps into continuous motion. Gated: the
+      // loop self-stops once paused AND settled; onTick (which only fires while
+      // playing, plus once on seek) restarts it via ensureScrollLoop().
+      const lerpScroll = () => {
+        const scrollEl = scrollRef.current;
+        let settling = false;
+        if (scrollEl) {
+          const diff = scrollTargetRef.current - scrollEl.scrollLeft;
+          if (Math.abs(diff) > 0.5) {
+            scrollEl.scrollLeft += diff * 0.12;
+            settling = true;
+          }
+        }
+        if (useAppStore.getState().status === "playing" || settling) {
+          rafScrollId.current = requestAnimationFrame(lerpScroll);
+        } else {
+          rafScrollId.current = null; // idle - stop until the next tick kicks it
+        }
+      };
+      const ensureScrollLoop = () => {
+        if (rafScrollId.current === null) rafScrollId.current = requestAnimationFrame(lerpScroll);
+      };
+
       // ── Transport tick: cursor position + scroll ─────────────────────────
       // IMPORTANT: do NOT close over `doc` here - it would always be null
       // (stale closure from first render). Always read fresh state instead.
@@ -119,11 +161,9 @@ export function SheetMusicView() {
           return;
         }
 
-        // Scroll cursor into view - throttled to ~4 fps to avoid jitter
-        const now = performance.now();
-        if (now - lastScrollMs.current < 250) return;
-        lastScrollMs.current = now;
-
+        // Update scroll to follow the cursor. Horizontal mode sets a lerp target
+        // (the rAF loop animates toward it for a continuous glide); page mode
+        // does a throttled jump with the browser's smooth-scroll.
         requestAnimationFrame(() => {
           const scrollEl = scrollRef.current; // outer scroll container
           const innerEl = containerRef.current; // AlphaTab host (cursor lives here)
@@ -133,15 +173,26 @@ export function SheetMusicView() {
             innerEl.querySelector<HTMLElement>(".at-cursor-beat") ??
             innerEl.querySelector<HTMLElement>(".at-cursor-bar");
           if (!cursor) return;
-          // cursor position relative to the scrollable content area
-          const cursorTop =
-            cursor.getBoundingClientRect().top -
-            scrollEl.getBoundingClientRect().top +
-            scrollEl.scrollTop;
-          const target = Math.max(0, cursorTop - scrollEl.clientHeight * 0.3);
-          if (Math.abs(target - lastScrollTop.current) > 80) {
-            lastScrollTop.current = target;
-            scrollEl.scrollTo({ top: target, behavior: "smooth" });
+          const cRect = cursor.getBoundingClientRect();
+          const sRect = scrollEl.getBoundingClientRect();
+
+          if (horizontal) {
+            // Absolute content x of the cursor; keep it ~40% from the left so
+            // there's lookahead. The rAF loop slides scrollLeft toward this.
+            const cursorLeft = cRect.left - sRect.left + scrollEl.scrollLeft;
+            scrollTargetRef.current = Math.max(0, cursorLeft - scrollEl.clientWidth * 0.4);
+            ensureScrollLoop();
+          } else {
+            // Page mode: throttled (~4 fps) jump, keep cursor at ~30% from top.
+            const now = performance.now();
+            if (now - lastScrollMs.current < 250) return;
+            lastScrollMs.current = now;
+            const cursorTop = cRect.top - sRect.top + scrollEl.scrollTop;
+            const target = Math.max(0, cursorTop - scrollEl.clientHeight * 0.3);
+            if (Math.abs(target - lastScrollTop.current) > 80) {
+              lastScrollTop.current = target;
+              scrollEl.scrollTo({ top: target, behavior: "smooth" });
+            }
           }
         });
       };
@@ -152,6 +203,10 @@ export function SheetMusicView() {
 
     return () => {
       cleanupBus?.();
+      if (rafScrollId.current !== null) {
+        cancelAnimationFrame(rafScrollId.current);
+        rafScrollId.current = null;
+      }
       playerReady.current = false;
       scoreLoaded.current = false;
       if (apiRef.current) {
@@ -168,15 +223,14 @@ export function SheetMusicView() {
   const isDark = settings.theme === "dark";
   const keepWhite = isDark && settings.sheetMusicWhiteBackground;
   const invertSheet = isDark && !settings.sheetMusicWhiteBackground;
+  // The "all" view renders the sheet as a horizontal strip (see init effect).
+  const horizontalSheet = settings.layoutMode === "all";
 
-  // ── Adapt stretchForce to layout mode ────────────────────────────────────
-  // "all" mode gives the sheet a narrow shared column, so we keep more
-  // stretching (0.5) to fill each line.  In dedicated sheet mode we use
-  // near-natural note spacing (0.1) for a printed-score look.
-  // The value is stored in a ref so the load effect below can read it fresh.
+  // ── stretchForce ──────────────────────────────────────────────────────────
+  // Near-natural note spacing (0.1) for a printed-score look in both page mode
+  // and the horizontal "all" strip. (The old 0.5 was to fill the narrow "all"
+  // sidebar, which no longer exists - "all" is now a full-width band.)
   const stretchForceRef = useRef(0.1);
-  // eslint-disable-next-line react-hooks/refs -- intentional: keeps ref in sync with derived state for effect to read fresh
-  stretchForceRef.current = settings.layoutMode === "all" ? 0.5 : 0.1;
 
   useEffect(() => {
     // Re-render the current score when the user switches between layout modes.
@@ -214,32 +268,47 @@ export function SheetMusicView() {
   }, [doc?.musicXml, doc?.mxlBuffer]);
 
   // Background logic:
-  //   light / dark normal: radial gradient + var(--color-notes-bg), matching FallingNotesView
   //   dark + keep white: explicit #fff so black notation stays readable on white
-  // The gradient (7% purple at bottom-center to transparent) is the same subtle glow used
-  // by FallingNotesView and PianoModeBackground, keeping all canvas areas visually consistent.
+  //   "all" (horizontal band): TRANSPARENT - the parent column carries one
+  //     continuous glow that both the sheet band and the falling-notes pane sit
+  //     over, so there's no seam and the overall tone matches the other views.
+  //   page mode: radial gradient + var(--color-notes-bg), matching FallingNotesView
   const scrollBg = keepWhite
     ? "#ffffff"
-    : "radial-gradient(ellipse at 50% 100%, rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)";
+    : horizontalSheet
+      ? "transparent"
+      : "radial-gradient(ellipse at 50% 100%, rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)";
 
   return (
     <div
       ref={scrollRef}
-      className="flex-1 overflow-auto"
+      className="flex-1"
       style={{
         background: scrollBg,
         minHeight: 0,
+        // Top border sits against the header in every mode (matches the other
+        // views' header separator). In "all" this is the TOP of the sheet band,
+        // not the seam with the falling-notes pane (that seam stays borderless).
         borderTop: "1px solid var(--color-notes-border)",
+        // Horizontal strip scrolls left<->right; page mode scrolls up/down.
+        overflowX: horizontalSheet ? "auto" : "hidden",
+        overflowY: horizontalSheet ? "hidden" : "auto",
       }}
     >
       {/*
-        Page-width wrapper - centres the score and caps it at ~A4 screen width
-        (900 px).  On wide monitors this creates margins on both sides so the
-        score never looks like a stretched banner; on narrow screens it fills
-        the full width just like before.  position:relative is needed so the
-        key-signature badge stays anchored inside the content column.
+        Page mode: page-width wrapper centres the score and caps it at ~A4
+        screen width (900 px). Horizontal mode: no width cap - the strip must
+        extend as wide as the score so it can scroll. position:relative keeps
+        the key-signature badge anchored.
       */}
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "8px 16px", position: "relative" }}>
+      <div
+        style={{
+          maxWidth: horizontalSheet ? "none" : 900,
+          margin: horizontalSheet ? 0 : "0 auto",
+          padding: "8px 16px",
+          position: "relative",
+        }}
+      >
         <div ref={containerRef} className={invertSheet ? "sheet-dark-invert" : ""} />
 
         {settings.showKeySignature && doc?.keySignature && settings.layoutMode !== "all" && (

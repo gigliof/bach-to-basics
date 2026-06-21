@@ -268,29 +268,54 @@ export function PracticeView() {
       </header>
 
       {/* ── Main content - layout-aware ──────────────────────────────────────
-          PianoKeyboardView is a SINGLETON at the bottom of the main column so
-          PixiJS doesn't re-init on every view switch (skeleton flash + perf cost).
-          Same for FallingNotesView in falling/all modes - kept mounted across
-          the two modes that show it. Only the conditional top-content elements
-          (PianoModeBackground / SheetMusicView / sheet sidebar) mount and
-          unmount on layoutMode change. */}
-      <main className="flex flex-1 overflow-hidden min-h-0 relative">
-        {/* Optional sheet sidebar (only in "all" mode) */}
-        {layoutMode === "all" && (
-          <div
-            className="flex flex-col flex-shrink-0 min-h-0 overflow-hidden relative"
-            style={{ flex: "0 0 42%", minWidth: 260, maxWidth: 440 }}
-          >
-            <SheetMusicView />
-          </div>
-        )}
+          Single vertical column. The piano keyboard is a SINGLETON pinned at the
+          bottom (keyed) so PixiJS never re-inits on a view switch. FallingNotesView
+          is keyed too, so it stays mounted across the falling<->all toggle (the
+          sheet band appears above it in "all" without remounting it).
 
-        {/* Main column: top content varies, piano persists across all modes */}
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-          {layoutMode === "piano" && <PianoModeBackground />}
-          {(layoutMode === "falling" || layoutMode === "all") && <FallingNotesView />}
-          {layoutMode === "sheet" && <SheetMusicView />}
-          <PianoKeyboardView />
+          "all" mode = three full-width horizontal bands stacked vertically:
+          sheet (top, horizontal strip) / falling notes (middle) / piano (bottom).
+          The dedicated "sheet" mode keeps a full vertical page (better for reading). */}
+      <main className="flex flex-1 overflow-hidden min-h-0 relative">
+        <div
+          className="flex flex-col flex-1 min-h-0 overflow-hidden"
+          style={{
+            // "all": one continuous glow on the whole column (sheet + falling
+            // read transparently over it), so there's no seam and the overall
+            // tone matches the other views (whose panes carry the same glow).
+            // Anchored just above the piano (calc(100% - keyboard height)) so the
+            // glow's brightest point lands where the other views' do - otherwise
+            // it sits behind the opaque keybed and reads slightly dimmer (visible
+            // in dark mode, where the purple contrasts more).
+            background:
+              layoutMode === "all"
+                ? "radial-gradient(ellipse at 50% calc(100% - 160px), rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)"
+                : undefined,
+          }}
+        >
+          {/* Piano-only mode: decorative backdrop above the keyboard */}
+          {layoutMode === "piano" && <PianoModeBackground key="piano-bg" />}
+
+          {/* Dedicated Sheet mode: full-height vertical page */}
+          {layoutMode === "sheet" && <SheetMusicView key="sheet-full" />}
+
+          {/* All mode: sheet as a full-width horizontal band at the top */}
+          {layoutMode === "all" && (
+            <div
+              key="sheet-band"
+              className="flex flex-col min-h-0 overflow-hidden"
+              style={{ flex: "0 0 32%", minHeight: 130 }}
+            >
+              <SheetMusicView />
+            </div>
+          )}
+
+          {/* Falling notes: middle (all) or full (falling). Keyed so it stays
+              mounted across the falling<->all toggle (no PixiJS re-init). */}
+          {(layoutMode === "falling" || layoutMode === "all") && <FallingNotesView key="falling" />}
+
+          {/* Piano keyboard: always the bottom singleton (keyed). */}
+          <PianoKeyboardView key="kbd" />
         </div>
       </main>
 
