@@ -50,7 +50,9 @@
       "esbuild"
     ],
     "overrides": {
-      "@xmldom/xmldom": "0.8.13"
+      "@xmldom/xmldom": "0.8.13",
+      "shell-quote": ">=1.8.4",
+      "@babel/core": ">=7.29.6"
     }
   }
 }
