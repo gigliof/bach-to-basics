@@ -25,7 +25,7 @@
     "@coderline/alphatab": "^1.8.3",
     "@tonejs/midi": "^2.0.6",
     "mitt": "^3.0.1",
-    "pixi.js": "^8.18.1",
+    "pixi.js": "^8.19.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "smplr": "^0.26.0",
