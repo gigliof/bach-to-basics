@@ -48,7 +48,7 @@ export function SheetMusicView() {
       const horizontal = useAppStore.getState().settings.layoutMode === "all";
 
       const api = new AlphaTabApi(containerRef.current, {
-        core: { engine: "svg", enableLazyLoading: false, logLevel: 0 },
+        core: { engine: "svg", enableLazyLoading: false, logLevel: 3, fontDirectory: "/font/" },
         display: {
           layoutMode: horizontal ? 1 : 0, // 1 = horizontal strip, 0 = page (vertical)
           // Smaller scale in the horizontal "all" band so the full grand staff

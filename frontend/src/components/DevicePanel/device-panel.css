@@ -1,0 +1,45 @@
+.midi-device-control { position: relative; flex-shrink: 0; --midi-green: #16834c; }
+[data-theme="dark"] .midi-device-control { --midi-green: #64d99a; }
+.midi-device-chip {
+  display: flex; align-items: center; gap: 8px; max-width: 210px; height: 30px;
+  padding: 0 11px; border: 1px solid var(--color-border); border-radius: 999px;
+  background: var(--color-surface); color: var(--color-text-muted);
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.midi-device-chip.is-connected { color: var(--midi-green); border-color: color-mix(in srgb, var(--midi-green) 28%, transparent); background: color-mix(in srgb, var(--midi-green) 7%, var(--color-surface)); }
+.midi-device-chip:hover, .midi-device-chip[aria-expanded="true"] { background: var(--color-surface-2); border-color: var(--color-text-muted); }
+.midi-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.midi-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.midi-chevron { flex-shrink: 0; opacity: .65; transition: transform 140ms ease; }
+.midi-device-chip[aria-expanded="true"] .midi-chevron { transform: rotate(180deg); }
+.midi-input-popover {
+  position: absolute; top: calc(100% + 10px); right: 0; width: 300px; max-width: calc(100vw - 24px);
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(15,23,42,.16), 0 3px 10px rgba(15,23,42,.06);
+  color: var(--color-text); z-index: 100; overflow: hidden;
+  transform-origin: top right; animation: midi-menu-open 140ms ease-out;
+}
+.midi-picker-heading { display: flex; gap: 11px; align-items: center; padding: 18px 18px 13px; }
+.midi-heading-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--color-surface-2); color: var(--color-text-muted); }
+.midi-picker-heading h2 { margin: 0; font-size: 13px; line-height: 19px; font-weight: 650; letter-spacing: -.1px; }
+.midi-picker-heading p { margin: 1px 0 0; font-size: 11px; line-height: 16px; color: var(--color-text-muted); }
+.midi-device-list { list-style: none; padding: 0 8px 8px; margin: 0; max-height: min(320px, 55vh); overflow-y: auto; }
+.midi-device-row { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--color-text-muted); text-align: left; cursor: pointer; font: inherit; transition: background 100ms ease; }
+.midi-device-row > svg { flex-shrink: 0; }
+.midi-device-row.is-selected { background: color-mix(in srgb, var(--midi-green) 8%, transparent); }
+.midi-device-row:hover { background: var(--color-surface-2); }
+.midi-device-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.midi-device-info strong { font-size: 12px; line-height: 17px; font-weight: 600; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.midi-device-info small { font-size: 10px; line-height: 14px; }
+.midi-device-row.is-selected small, .midi-selected-check { color: var(--midi-green); }
+.midi-picker-footer { margin: 0 8px; padding: 6px 0 8px; border-top: 1px solid var(--color-border); }
+.midi-disconnect { width: 100%; display: flex; align-items: center; gap: 11px; background: transparent; color: #c84343; padding: 10px 12px; border: 0; border-radius: 9px; font: inherit; font-size: 12px; font-weight: 500; text-align: left; cursor: pointer; }
+[data-theme="dark"] .midi-disconnect { color: #fb9898; }
+.midi-disconnect:hover { background: rgba(220,70,70,.08); }
+.midi-empty-state { margin: 0 10px 10px; padding: 16px 12px; border-radius: 10px; background: var(--color-surface-2); }
+.midi-empty-state strong { font-size: 12px; font-weight: 500; }
+.midi-empty-state p { margin: 6px 0 0; color: var(--color-text-muted); font-size: 11px; line-height: 17px; }
+.midi-device-chip:focus-visible, .midi-input-popover button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+@keyframes midi-menu-open { from { opacity: 0; transform: translateY(-3px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .midi-input-popover { animation: none; } .midi-chevron, .midi-device-chip, .midi-device-row { transition: none; } }

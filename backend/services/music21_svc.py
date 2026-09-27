@@ -351,6 +351,13 @@ def _xml_to_midi(xml_bytes: bytes, filename: str) -> bytes:
 
         score = music21.converter.parse(xml_path)
 
+        # Harmony symbols are notation labels, not performed notes. music21 can
+        # export their pitches as zero-duration MIDI chords even when writeAsChord
+        # is False. Preserve them in the original MusicXML used for rendering,
+        # but remove them from this playback-only score.
+        for symbol in list(score.recurse().getElementsByClass(music21.harmony.Harmony)):
+            score.remove(symbol, recurse=True)
+
         midi_tmp = tempfile.NamedTemporaryFile(suffix=".mid", delete=False)
         midi_tmp.close()
         midi_tmp_name = midi_tmp.name

@@ -1,0 +1,18 @@
+.hand-volume-button { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface-2); color: var(--color-text-muted); cursor: pointer; }
+.hand-volume-button[aria-expanded="true"] { color: var(--color-accent-text); background: var(--color-accent-subtle); }
+.hand-volume-panel { position: fixed; z-index: 1100; width: 240px; padding: 16px; box-sizing: border-box; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-surface); color: var(--color-text); box-shadow: 0 12px 40px rgba(0,0,0,.22); font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+.hand-volume-heading { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.hand-volume-heading button { border: 0; background: transparent; color: var(--color-text-muted); cursor: pointer; padding: 4px; }
+.hand-volume-sliders { display: flex; justify-content: space-evenly; padding-top: 16px; }
+.hand-volume-column { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.hand-volume-rail { position: relative; width: 36px; height: 144px; }
+.hand-volume-panel input[type="range"] { position: absolute; width: 144px; height: 28px; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-90deg); margin: 0; padding: 0; appearance: none; background: transparent; cursor: pointer; }
+.hand-volume-panel input[type="range"]::-webkit-slider-runnable-track { height: 6px; background: var(--color-border); border-radius: 4px; }
+.hand-volume-panel input[type="range"]::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; margin-top: -7px; border: 3px solid var(--color-accent); background: var(--color-surface); border-radius: 50%; }
+.hand-volume-panel input[type="range"]:focus { outline: none; }
+.hand-volume-panel input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.hand-volume-column output { font-variant-numeric: tabular-nums; }
+.hand-volume-mute-state { height: 12px; font-size: 10px; font-weight: 400; color: var(--color-text-muted); }
+.hand-volume-link { width: 100%; cursor: pointer; font-family: inherit; border: 1px solid var(--color-border); border-radius: 7px; padding: 8px; color: var(--color-text); background: var(--color-surface-2); margin-top: 8px; }
+.hand-volume-link.is-linked { color: var(--color-accent-text); background: var(--color-accent-subtle); }
+.hand-volume-panel p { text-align: center; font-size: 11px; color: var(--color-text-muted); margin: 10px 0 0; }

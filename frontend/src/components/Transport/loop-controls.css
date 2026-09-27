@@ -1,0 +1,27 @@
+.loop-control-group { display: flex; flex-shrink: 0; border: 1px solid var(--color-border); border-radius: 7px; overflow: hidden; background: var(--color-surface-2); }
+.loop-control-group button { height: 28px; padding: 0 9px; border: 0; background: transparent; color: var(--color-text-muted); font-weight: 500; font-size: 11px; font-family: inherit; cursor: pointer; font-variant-numeric: tabular-nums; }
+.loop-control-group button + button { border-left: 1px solid var(--color-border); }
+.loop-control-group button:disabled { opacity: .5; cursor: default; }
+.loop-control-group .loop-active { color: var(--color-accent-text); background: var(--color-accent-subtle); }
+.loop-editor { font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif); position: fixed; z-index: 1100; width: 360px; max-width: calc(100vw - 24px); box-sizing: border-box; padding: 18px 20px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.22); }
+.loop-editor-heading { display: flex; align-items: center; justify-content: space-between; font-size: 15px; }
+.loop-editor button { cursor: pointer; font-family: inherit; border: 1px solid var(--color-border); border-radius: 6px; padding: 6px 9px; color: var(--color-text); background: var(--color-surface-2); font-size: 12px; }
+.loop-editor-heading button { border: 0; background: transparent; }
+.loop-editor p { color: var(--color-text-muted); font-size: 12px; margin: 10px 0 18px; }
+.loop-times, .loop-track-labels { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.loop-times { font-size: 14px; font-weight: 600; color: var(--color-accent-text); }
+.loop-range-track { position: relative; height: 40px; margin: 5px 10px 0; }
+.loop-range-line, .loop-range-selection { position: absolute; top: 17px; height: 6px; border-radius: 5px; pointer-events: none; }
+.loop-range-line { width: 100%; background: var(--color-border); }
+.loop-range-selection { background: var(--color-accent); }
+.loop-editor input.loop-range-input { position: absolute; top: 0; left: -10px; width: calc(100% + 20px); height: 40px; margin: 0; padding: 0; appearance: none; background: transparent; pointer-events: none; }
+.loop-editor input.loop-range-input::-webkit-slider-runnable-track { background: transparent; height: 6px; }
+.loop-editor input.loop-range-input::-webkit-slider-thumb { appearance: none; pointer-events: auto; width: 20px; height: 20px; margin-top: -7px; border-radius: 50%; border: 3px solid var(--color-accent); background: var(--color-surface); cursor: ew-resize; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+.loop-editor input.loop-range-input::-moz-range-thumb { pointer-events: auto; width: 16px; height: 16px; border-radius: 50%; border: 3px solid var(--color-accent); background: var(--color-surface); cursor: ew-resize; }
+.loop-editor input.loop-range-input:focus { outline: none; z-index: 1; }
+.loop-editor input.loop-range-input:focus-visible::-webkit-slider-thumb { outline: 3px solid var(--color-accent); outline-offset: 3px; }
+.loop-track-labels { color: var(--color-text-muted); font-size: 11px; }
+.loop-editor-actions { display: flex; gap: 6px; margin-top: 18px; }
+.loop-editor-actions .loop-done { margin-left: auto; background: var(--color-accent); color: white; border-color: transparent; }
+
+.loop-times label { cursor: pointer; }

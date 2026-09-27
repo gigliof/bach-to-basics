@@ -1,0 +1,16 @@
+.keyboard-resize-handle {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 8px;
+  background: transparent;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  z-index: 1;
+}
+/* Show focus only for keyboard navigation; the resting edge stays seamless. */
+.keyboard-resize-handle:focus { outline: none; }
+.keyboard-resize-handle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}

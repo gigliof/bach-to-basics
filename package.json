@@ -15,6 +15,7 @@
   },
   "type": "module",
   "scripts": {
+    "build:mac": "npm run build --prefix desktop",
     "dev": "concurrently --names \"frontend,backend\" --prefix-colors \"cyan,yellow\" \"pnpm --filter frontend dev\" \"cd backend && .venv/bin/uvicorn main:app --reload --port 8000\"",
     "build": "pnpm --filter frontend build",
     "test": "pnpm --filter frontend test",

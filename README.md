@@ -95,6 +95,14 @@ Save the loaded piece in any of these formats via the Export button (next to Imp
 
 ## Running the app
 
+### Mac desktop app
+
+Build the app using [the Mac app guide](desktop/MAC-APP.md), then open
+`release/0.6.8/Bach to Basics-darwin-arm64/Bach to Basics.app` (Apple Silicon).
+The app includes its own music-processing runtime and does not need Terminal,
+Node, Python, or a running web server. Use ⌘O to open music. See
+[the Mac app guide](desktop/MAC-APP.md) for rebuilding, optional features, and diagnostics.
+
 ### Option A: Docker (recommended for end users)
 
 The simplest way. Requires only Docker Desktop (or Docker Engine + Compose).

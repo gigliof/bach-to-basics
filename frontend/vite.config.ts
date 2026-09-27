@@ -2,13 +2,16 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { alphaTab } from "@coderline/alphatab-vite";
 import { resolve } from "path";
 
 export default defineConfig({
   plugins: [
+    alphaTab(),
     react(),
     tailwindcss(),
     VitePWA({
+      disable: process.env.DESKTOP_BUILD === "1",
       // Silently install updates - new SW takes over on next page open (no popup, no reload prompt).
       // Matches the consumer-app pattern (Gmail, Spotify Web, etc.).
       registerType: "autoUpdate",
