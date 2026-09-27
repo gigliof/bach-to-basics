@@ -20,7 +20,7 @@ MAX_UPLOAD_BYTES = 50 * 1024 * 1024   # 50 MB
 
 # H4 - extension allowlists
 _MIDI_EXTS  = {".mid", ".midi"}
-_XML_EXTS   = {".xml", ".mxl"}
+_XML_EXTS   = {".xml", ".musicxml", ".mxl"}
 _AUDIO_EXTS = {".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac"}
 
 # M5 - MIDI magic bytes: "MThd"
@@ -102,7 +102,7 @@ async def midi_to_musicxml(file: UploadFile, title: str = Query(default="")):
 
 @router.post("/musicxml2midi")
 async def musicxml_to_midi(file: UploadFile, background_tasks: BackgroundTasks):
-    """Convert a MusicXML (.xml or .mxl) file to MIDI for playback."""
+    """Convert a MusicXML (.xml, .musicxml, or .mxl) file to MIDI for playback."""
     try:
         filename = file.filename or "score.xml"
         _check_ext(filename, _XML_EXTS)

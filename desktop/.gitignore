@@ -1,0 +1,16 @@
+node_modules/
+.venv/
+.npm-cache/
+.pyinstaller-cache/
+python-build/
+python-dist/
+staging/
+app-source/
+AppIcon.iconset/
+AppIcon.icns
+AppIcon.png
+.swift-cache/
+.smoke-profile*/
+*.spec
+
+.dmg-stage-*/

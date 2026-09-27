@@ -562,15 +562,20 @@ export class PianoKeyboard {
     for (const g of this.gradCache.values()) g.destroy();
     this.gradCache.clear();
 
+    const activeStates = new Map(this.keyStates);
     this.keyX.clear();
     this.keys.clear();
     this.keyContainers.clear();
     this.keyLabels.clear();
     this.fingerLabels.clear();
     this.keyStates.clear();
-    this.app.stage.removeChildren();
+    for (const child of this.app.stage.removeChildren()) child.destroy({ children: true });
     this.computeLayout();
     this.drawKeys();
+    for (const [midi, state] of activeStates) {
+      this.keyStates.set(midi, { ...state, hovered: false });
+      if (state.playbackActive || state.inputActive) this.redrawKey(midi);
+    }
   }
 
   destroy() {

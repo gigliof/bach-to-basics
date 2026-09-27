@@ -107,3 +107,13 @@ lerna-debug.log*
 # ── Misc ──────────────────────────────────────────────────────────────────────
 *.iml
 .history/
+
+# macOS application build output
+release/
+*.tsbuildinfo
+
+# AlphaTab assets copied from the installed package by the Vite plugin
+frontend/public/font/
+frontend/public/soundfont/LICENSE
+frontend/public/soundfont/README.md
+frontend/public/soundfont/sonivox.sf2

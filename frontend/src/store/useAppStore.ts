@@ -1,3 +1,5 @@
+import { PREFERENCES_KEY, restorePreferences, serializePreferences } from "./preferences";
+import { loopRange } from "../utils/loopRange";
 import { create } from "zustand";
 import { syncEngine } from "../engine/SyncEngine";
 import bus from "../engine/EventBus";
@@ -59,6 +61,7 @@ export interface AppSettings {
   showFingeringOnNotes: boolean;
   showHandColors: boolean;
   useFlats: boolean;
+  keyboardHeight: number;
   viewportSeconds: number; // FallingNotes lookahead window
   theme: "dark" | "light";
   activeHands: Set<"left" | "right">;
@@ -96,6 +99,7 @@ export interface AppSettings {
   showSustainPedal: boolean;
   /** Per-hand volume multiplier (0 = silent, 1 = full) */
   handVolume: { left: number; right: number };
+  handVolumesLinked: boolean;
   /** Active instrument for audio playback */
   instrument: InstrumentId;
   /** Which hand(s) trigger wait-mode pauses ("both" = default, all hands) */
@@ -202,6 +206,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showFingeringOnNotes: false,
   showHandColors: true,
   useFlats: false,
+  keyboardHeight: 160,
   viewportSeconds: 4.0,
   theme: getInitialTheme(),
   activeHands: new Set(["left", "right"]),
@@ -230,6 +235,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showBeatLines: false,
   showSustainPedal: false,
   handVolume: { left: 1, right: 1 },
+  handVolumesLinked: true,
   // ── "Consider later" additions ────────────────────────────────────────────
   instrument: "grand" as InstrumentId,
   waitForHand: "both" as "left" | "right" | "both",
@@ -313,7 +319,7 @@ export const useAppStore = create<AppState>((set, get) => {
       try {
         const id = crypto.randomUUID();
         // M4 - strip path separators, control chars; cap length
-        const rawTitle = file.name.replace(/\.(xml|mxl)$/i, "");
+        const rawTitle = file.name.replace(/\.(xml|musicxml|mxl)$/i, "");
         const title = rawTitle.replace(/[\x00-\x1f\x7f/\\]/g, "").slice(0, 200) || "Untitled";
         const xmlBytes = await file.arrayBuffer();
 
@@ -700,8 +706,9 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     setLoopPoints: (start, end) => {
-      syncEngine.setLoopPoints(start, end);
-      set({ loopStart: start, loopEnd: end });
+      const [a, b] = loopRange(get().document?.totalDuration ?? 0, start, end);
+      syncEngine.setLoopPoints(a, b);
+      set({ loopStart: a, loopEnd: b });
     },
 
     setWaitMode: (on) => {
@@ -723,6 +730,8 @@ export const useAppStore = create<AppState>((set, get) => {
 
     updateSettings: (patch) => {
       set((s) => ({ settings: { ...s.settings, ...patch } }));
+      if (patch.activeHands !== undefined) syncEngine.setActiveHands(patch.activeHands);
+      if (patch.metronomeEnabled !== undefined) syncEngine.setMetronome(patch.metronomeEnabled);
       // Sync practice settings to the engine immediately
       if ("transposeSemitones" in patch && patch.transposeSemitones !== undefined)
         syncEngine.setTranspose(patch.transposeSemitones);
@@ -781,6 +790,22 @@ export const useAppStore = create<AppState>((set, get) => {
     },
   };
 });
+
+// Restore before mounting React or opening the remembered song. Engine state must
+// match the controls; begin persistence only after all setters have finished.
+if (typeof window !== "undefined") {
+  let raw: string | null = null;
+  try { raw = window.localStorage.getItem(PREFERENCES_KEY); } catch { /* storage unavailable */ }
+  const restored = restorePreferences(raw, DEFAULT_SETTINGS);
+  const store = useAppStore.getState();
+  store.updateSettings(restored.settings);
+  store.setTempoMultiplier(restored.tempoMultiplier);
+  store.setWaitMode(restored.waitMode);
+  useAppStore.subscribe((state, previous) => {
+    if (state.settings === previous.settings && state.tempoMultiplier === previous.tempoMultiplier && state.waitMode === previous.waitMode) return;
+    try { window.localStorage.setItem(PREFERENCES_KEY, serializePreferences(state)); } catch { /* keep controls usable if storage is full */ }
+  });
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

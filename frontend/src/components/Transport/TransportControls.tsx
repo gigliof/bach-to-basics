@@ -1,3 +1,6 @@
+import { HandVolumeControls } from "./HandVolumeControls";
+import { LoopControls } from "./LoopControls";
+import { importSong } from "../../library/useSongLibrary";
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../../store/useAppStore";
 import { syncEngine } from "../../engine/SyncEngine";
@@ -23,14 +26,9 @@ export function TransportControls() {
     stop,
     seek,
     setTempoMultiplier,
-    setLoopPoints,
     setWaitMode,
     setMetronome,
     settings,
-    loadMidiFile,
-    loadMusicXmlFile,
-    loadPdfFile,
-    loadAudioFile,
     isLoadingDocument,
     loadingMessage,
     exportMidi,
@@ -86,12 +84,7 @@ export function TransportControls() {
     return () => document.removeEventListener("mousedown", handler);
   }, [speedOpen]);
 
-  const openFile = (file: File) => {
-    if (file.name.match(/\.midi?$/i)) loadMidiFile(file);
-    else if (file.name.match(/\.(xml|mxl)$/i)) loadMusicXmlFile(file);
-    else if (file.name.match(/\.pdf$/i)) loadPdfFile(file);
-    else if (file.name.match(/\.(mp3|wav|m4a|ogg|flac|aac)$/i)) loadAudioFile(file);
-  };
+  const openFile = (file: File) => { void importSong(file); };
 
   const total = doc?.totalDuration ?? 0;
   const progress = total > 0 ? Math.min(1, currentSeconds / total) : 0;
@@ -112,19 +105,6 @@ export function TransportControls() {
       if (next.size > 1) next.delete(hand);
     } else next.add(hand);
     useAppStore.getState().setActiveHands(next);
-  };
-
-  const startLoop = () => {
-    const start = currentSeconds;
-    const end = Math.min(total, start + 30);
-    setLoopPoints(start, end > start ? end : total);
-  };
-  const clearLoop = () => setLoopPoints(null, null);
-  const setLoopA = () => {
-    if (loopEnd !== null) setLoopPoints(Math.min(currentSeconds, loopEnd - 1), loopEnd);
-  };
-  const setLoopB = () => {
-    if (loopStart !== null) setLoopPoints(loopStart, Math.max(currentSeconds, loopStart + 1));
   };
 
   return (
@@ -247,7 +227,7 @@ export function TransportControls() {
           )}
           <input
             type="file"
-            accept=".mid,.midi,.xml,.mxl,.pdf,.mp3,.wav,.m4a,.ogg,.flac,.aac"
+            accept=".mid,.midi,.xml,.musicxml,.mxl,.pdf,.mp3,.wav,.m4a,.ogg,.flac,.aac"
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
@@ -444,6 +424,7 @@ export function TransportControls() {
               </button>
             );
           })}
+          <HandVolumeControls />
         </div>
 
         {/* Spacer */}
@@ -461,91 +442,7 @@ export function TransportControls() {
             <WaitIcon /> Wait
           </ChipBtn>
 
-          {/* ── A / Loop / B - single compound grouped control ── */}
-          <div
-            className="flex items-center shrink-0"
-            style={{
-              border: "1px solid var(--color-border)",
-              borderRadius: 7,
-              overflow: "hidden",
-              background: "var(--color-surface-2)",
-            }}
-          >
-            {/* A marker */}
-            <button
-              onClick={setLoopA}
-              disabled={!loopActive}
-              title="Set loop start (A) to current position"
-              aria-label="Set loop start to current position"
-              style={{
-                height: 28,
-                padding: "0 8px",
-                background: "transparent",
-                border: "none",
-                borderRight: "1px solid var(--color-border)",
-                color: loopActive ? "var(--color-accent-text)" : "var(--color-text-muted)",
-                fontSize: 11,
-                fontWeight: 700,
-                fontFamily: "inherit",
-                cursor: loopActive ? "pointer" : "default",
-                opacity: loopActive ? 1 : 0.5,
-                transition: "all 0.12s",
-              }}
-            >
-              A
-            </button>
-
-            {/* Loop toggle (middle) */}
-            <button
-              onClick={loopActive ? clearLoop : startLoop}
-              disabled={!doc}
-              title={loopActive ? "Clear loop" : "Start A/B loop from current position"}
-              aria-label={loopActive ? "Clear loop" : "Start loop"}
-              aria-pressed={loopActive}
-              style={{
-                height: 28,
-                padding: "0 9px",
-                background: loopActive ? "var(--color-accent-subtle)" : "transparent",
-                border: "none",
-                color: loopActive ? "var(--color-accent-text)" : "var(--color-text-muted)",
-                fontSize: 11,
-                fontWeight: 500,
-                fontFamily: "inherit",
-                cursor: doc ? "pointer" : "default",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                transition: "all 0.12s",
-              }}
-            >
-              <LoopIcon />
-              {loopActive ? `${formatTime(loopStart!)}-${formatTime(loopEnd!)}` : "Loop"}
-            </button>
-
-            {/* B marker */}
-            <button
-              onClick={setLoopB}
-              disabled={!loopActive}
-              title="Set loop end (B) to current position"
-              aria-label="Set loop end to current position"
-              style={{
-                height: 28,
-                padding: "0 8px",
-                background: "transparent",
-                border: "none",
-                borderLeft: "1px solid var(--color-border)",
-                color: loopActive ? "var(--color-accent-text)" : "var(--color-text-muted)",
-                fontSize: 11,
-                fontWeight: 700,
-                fontFamily: "inherit",
-                cursor: loopActive ? "pointer" : "default",
-                opacity: loopActive ? 1 : 0.5,
-                transition: "all 0.12s",
-              }}
-            >
-              B
-            </button>
-          </div>
+          <LoopControls />
 
           <ChipBtn
             active={settings.metronomeEnabled}
@@ -875,11 +772,6 @@ const WaitIcon = () => (
   </svg>
 );
 
-const LoopIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.68 14.72 20 13.41 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.32 9.28 4 10.59 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
-  </svg>
-);
 
 const SpeedIcon = () => (
   <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">

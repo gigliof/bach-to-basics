@@ -1,3 +1,5 @@
+import { SongLibrary } from "../components/SongLibrary/SongLibrary";
+import { importSong } from "../library/useSongLibrary";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { FallingNotesView } from "../components/FallingNotes/FallingNotesView";
 import { PianoKeyboardView } from "../components/PianoKeyboard/PianoKeyboardView";
@@ -29,10 +31,6 @@ export function PracticeView() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const {
-    loadMidiFile,
-    loadMusicXmlFile,
-    loadPdfFile,
-    loadAudioFile,
     settings,
     updateSettings,
     status,
@@ -113,15 +111,7 @@ export function PracticeView() {
     return () => window.removeEventListener("keydown", handler);
   }, [seek]);
 
-  const loadFile = useCallback(
-    (file: File) => {
-      if (file.name.match(/\.midi?$/i)) loadMidiFile(file);
-      else if (file.name.match(/\.(xml|mxl)$/i)) loadMusicXmlFile(file);
-      else if (file.name.match(/\.pdf$/i)) loadPdfFile(file);
-      else if (file.name.match(/\.(mp3|wav|m4a|ogg|flac|aac)$/i)) loadAudioFile(file);
-    },
-    [loadMidiFile, loadMusicXmlFile, loadPdfFile, loadAudioFile]
-  );
+  const loadFile = useCallback((file: File) => { void importSong(file); }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -192,6 +182,8 @@ export function PracticeView() {
             <span className="sr-only"> on GitHub</span>
           </span>
         </a>
+
+        <SongLibrary />
 
         {/* Center: layout mode tabs - absolutely centered in the header */}
         <div
@@ -289,7 +281,7 @@ export function PracticeView() {
             // in dark mode, where the purple contrasts more).
             background:
               layoutMode === "all"
-                ? "radial-gradient(ellipse at 50% calc(100% - 160px), rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)"
+                ? `radial-gradient(ellipse at 50% calc(100% - min(${settings.keyboardHeight}px, 100vh / 3)), rgba(147,51,234,0.07) 0%, transparent 65%), var(--color-notes-bg)`
                 : undefined,
           }}
         >
@@ -424,7 +416,7 @@ function EmptyState({ onImport }: { onImport: (file: File) => void }) {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".mid,.midi,.xml,.mxl,.pdf,.mp3,.wav,.m4a,.ogg,.flac,.aac"
+        accept=".mid,.midi,.xml,.musicxml,.mxl,.pdf,.mp3,.wav,.m4a,.ogg,.flac,.aac"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
@@ -599,7 +591,7 @@ function StatusBar() {
               Playing
             </span>
           )}
-          <span className="truncate" style={{ minWidth: 0 }}>
+          <span aria-label="Current song" className="truncate" style={{ minWidth: 0 }}>
             {doc.title}
           </span>
           {keySig && (
@@ -613,6 +605,11 @@ function StatusBar() {
               <Dot />
               <span className="shrink-0">{effectiveBpm} BPM</span>
             </>
+          )}
+          {status === "waiting" && (
+            <span className="shrink-0" style={{ color: "var(--color-accent)" }}>
+              Waiting for: {syncEngine.waitingPitches.map((midi) => midiToPitch(midi)).join(" + ")}
+            </span>
           )}
           {lastNote && (
             <>

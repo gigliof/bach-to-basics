@@ -1,29 +1,49 @@
 import { useEffect, useRef, useState } from "react";
+import "./device-panel.css";
 import { WebMidi } from "webmidi";
+import { MidiInputSelection } from "../../engine/MidiInputSelection";
 import { syncEngine } from "../../engine/SyncEngine";
 import { useAppStore } from "../../store/useAppStore";
 
 export function DevicePanel() {
-  const [inputs, setInputs] = useState<string[]>([]);
+  const [inputs, setInputs] = useState<{ id: string; name: string }[]>([]);
   const [midiStatus, setMidiStatus] = useState<"idle" | "enabled" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const chipRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const { midiDeviceName, setMidiDevice } = useAppStore();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectionRef = useRef<MidiInputSelection | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const selection = new MidiInputSelection({
+      changed: (available, selected) => {
+        if (cancelled) return;
+        setInputs(available.map(({ id, name }) => ({ id, name })));
+        setSelectedId(selected?.id ?? null);
+        setMidiDevice(selected?.name ?? null);
+      },
+      noteOn: (note, velocity) => {
+        void syncEngine.wakeAudio();
+        void syncEngine.playMidi(note, velocity).catch((err) => {
+          console.error("MIDI input audio failed:", err);
+        });
+      },
+      noteOff: (note) => syncEngine.stopMidi(note),
+    });
+    selectionRef.current = selection;
+    const refresh = () => selection.refresh(WebMidi.inputs);
     WebMidi.enable({ sysex: false })
       .then(() => {
+        if (cancelled) return;
         setMidiStatus("enabled");
-        setInputs(WebMidi.inputs.map((i) => i.name));
-        WebMidi.addListener("connected", () => setInputs(WebMidi.inputs.map((i) => i.name)));
-        WebMidi.addListener("disconnected", (e) => {
-          setInputs(WebMidi.inputs.map((i) => i.name));
-          if (e.port.name === midiDeviceName) setMidiDevice(null);
-        });
+        WebMidi.addListener("portschanged", refresh);
+        refresh();
       })
       .catch((err: unknown) => {
+        if (cancelled) return;
         const msg = err instanceof Error ? err.message : String(err);
         setErrorMsg(
           !navigator.requestMIDIAccess
@@ -34,11 +54,13 @@ export function DevicePanel() {
       });
 
     return () => {
-      try { WebMidi.removeListener("connected"); } catch {}
-      try { WebMidi.removeListener("disconnected"); } catch {}
+      cancelled = true;
+      WebMidi.removeListener("portschanged", refresh);
+      selection.dispose();
+      selectionRef.current = null;
+      setMidiDevice(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [setMidiDevice]);
 
   // Close popover on outside click
   useEffect(() => {
@@ -49,28 +71,30 @@ export function DevicePanel() {
         !popoverRef.current?.contains(e.target as Node)
       ) setOpen(false);
     };
+    const focusOutside = (event: FocusEvent) => {
+      if (!popoverRef.current?.contains(event.target as Node) && !chipRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const first = popoverRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]') ?? popoverRef.current?.querySelector<HTMLButtonElement>("button");
+    (first ?? popoverRef.current)?.focus();
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("focusin", focusOutside);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("focusin", focusOutside);
+    };
   }, [open]);
 
-  const connectDevice = (name: string) => {
-    if (midiDeviceName) {
-      try { WebMidi.getInputByName(midiDeviceName)?.removeListener(); } catch {}
-    }
-    const input = WebMidi.getInputByName(name);
-    if (!input) return;
-    input.addListener("noteon", (e) => syncEngine.onMidiInput(e.note.number, e.rawValue ?? 64));
-    input.addListener("noteoff", (e) => syncEngine.onMidiInputOff(e.note.number));
-    setMidiDevice(name);
+  const connectDevice = (id: string) => {
+    selectionRef.current?.select(id);
+    void syncEngine.wakeAudio();
     setOpen(false);
+    chipRef.current?.focus();
   };
 
   const disconnect = () => {
-    if (midiDeviceName) {
-      try { WebMidi.getInputByName(midiDeviceName)?.removeListener(); } catch {}
-    }
-    setMidiDevice(null);
+    selectionRef.current?.disconnect();
     setOpen(false);
+    chipRef.current?.focus();
   };
 
   // Error state
@@ -92,115 +116,79 @@ export function DevicePanel() {
   const connected = !!midiDeviceName;
 
   return (
-    <div className="relative shrink-0">
-      {/* Chip button */}
+    <div className="midi-device-control">
       <button
         ref={chipRef}
         onClick={() => setOpen((v) => !v)}
-        title={connected ? `Connected: ${midiDeviceName}` : "Select MIDI input device"}
-        className="flex items-center gap-2 text-xs font-semibold transition-colors shrink-0"
-        style={{
-          background: connected ? "rgba(34,197,94,0.08)" : "var(--color-warning-subtle)",
-          border: connected ? "1px solid rgba(34,197,94,0.5)" : "1px solid var(--color-warning-border)",
-          color: connected ? "#4ade80" : "var(--color-warning)",
-          cursor: "pointer",
-          maxWidth: 200,
-          borderRadius: 999,
-          fontSize: 12,
-          padding: connected ? "4px 10px" : "5px 12px",
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown") { event.preventDefault(); event.stopPropagation(); setOpen(true); }
+          if (event.key === "Escape") setOpen(false);
         }}
+        title={connected ? `Connected: ${midiDeviceName}` : "Select MIDI input device"}
+        aria-label="Choose MIDI instrument"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-controls={open ? "midi-input-picker" : undefined}
+        className={`midi-device-chip ${connected ? "is-connected" : ""}`}
       >
-        {connected ? (
-          <span
-            className="w-1.5 h-1.5 rounded-full shrink-0"
-            style={{ background: "#4ade80", boxShadow: "0 0 6px #4ade80" }}
-          />
-        ) : (
-          <span style={{ fontSize: 11, lineHeight: 1, flexShrink: 0 }}>⚠</span>
-        )}
-        <span
-          className="truncate"
-          style={{ maxWidth: 130 }}
-        >
-          {connected ? midiDeviceName : "No MIDI device"}
-        </span>
-        <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0 }}>
-          <path d="M7 10l5 5 5-5z"/>
-        </svg>
+        <span className="midi-status-dot" />
+        <span className="midi-chip-name">{connected ? midiDeviceName : "MIDI input"}</span>
+        <svg className="midi-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
       </button>
-
-      {/* Popover */}
       {open && (
         <div
           ref={popoverRef}
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            right: 0,
-            minWidth: 200,
-            background: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-            zIndex: 100,
-            overflow: "hidden",
+          id="midi-input-picker"
+          role="dialog"
+          aria-label="MIDI input"
+          tabIndex={-1}
+          className="midi-input-popover"
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === "Escape") { event.preventDefault(); setOpen(false); chipRef.current?.focus(); }
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault();
+              const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button'));
+              const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+              buttons[(index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length]?.focus();
+            }
           }}
         >
-          <div
-            className="px-3 py-2 text-xs font-semibold uppercase tracking-wide"
-            style={{ color: "var(--color-text-muted)", borderBottom: "1px solid var(--color-border)" }}
-          >
-            MIDI Input
+          <div className="midi-picker-heading">
+            <span className="midi-heading-icon"><KeyboardIcon /></span>
+            <div><h2>MIDI input</h2><p>Choose your instrument</p></div>
           </div>
-
           {inputs.length === 0 ? (
-            <div className="px-3 py-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
-              No MIDI devices found.
+            <div className="midi-empty-state" role="status">
+              <strong>No instruments detected</strong>
+              <p>Connect your keyboard with USB or MIDI. It will appear here automatically.</p>
             </div>
           ) : (
-            <ul style={{ listStyle: "none", margin: 0, padding: "4px 0" }}>
-              {inputs.map((name) => {
-                const isActive = name === midiDeviceName;
-                return (
-                  <li key={name}>
-                    <button
-                      onClick={() => connectDevice(name)}
-                      className="w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2"
-                      style={{
-                        background: isActive ? "rgba(99,102,241,0.12)" : "transparent",
-                        color: isActive ? "var(--color-accent)" : "var(--color-text)",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ background: isActive ? "#4ade80" : "var(--color-border)" }}
-                      />
-                      <span className="truncate">{name}</span>
-                      {isActive && (
-                        <span className="ml-auto text-xs" style={{ color: "#4ade80" }}>✓</span>
-                      )}
-                    </button>
-                  </li>
-                );
+            <ul className="midi-device-list">
+              {inputs.map(({ id, name }) => {
+                const isActive = id === selectedId;
+                return <li key={id}>
+                  <button className={`midi-device-row ${isActive ? "is-selected" : ""}`} aria-pressed={isActive} onClick={() => connectDevice(id)}>
+                    <KeyboardIcon />
+                    <span className="midi-device-info"><strong title={name}>{name}</strong><small>{isActive ? "Connected" : "Available"}</small></span>
+                    {isActive && <svg className="midi-selected-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>}
+                  </button>
+                </li>;
               })}
             </ul>
           )}
-
-          {connected && (
-            <div style={{ borderTop: "1px solid var(--color-border)", padding: "4px 0" }}>
-              <button
-                onClick={disconnect}
-                className="w-full text-left px-3 py-2 text-xs transition-colors"
-                style={{ background: "transparent", color: "#f87171", border: "none", cursor: "pointer" }}
-              >
-                Disconnect
-              </button>
-            </div>
-          )}
+          {connected && <div className="midi-picker-footer">
+            <button className="midi-disconnect" onClick={disconnect}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M12 3v9M7 5.7a8 8 0 1 0 10 0" /></svg>
+              Disconnect
+            </button>
+          </div>}
         </div>
       )}
     </div>
   );
+}
+
+function KeyboardIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M9 5v14m6-14v14M8 5v7h2V5m4 0v7h2V5" /></svg>;
 }

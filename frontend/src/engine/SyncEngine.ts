@@ -42,6 +42,9 @@ class SyncEngine {
 
   private doc: MusicDocument | null = null;
   private noteIndex = 0;
+  // Audio scheduling looks ahead; practice matching must track notes independently.
+  private waitIndex = 0;
+  private pendingWaitNotes: NoteEvent[] = [];
   private activeNotes = new Set<string>();
 
   private _state: SyncEngineState = {
@@ -91,9 +94,15 @@ class SyncEngine {
   // ── Public API ──────────────────────────────────────────────────────────────
 
   async loadDocument(doc: MusicDocument) {
+    if (this.doc?.id !== doc.id) {
+      this._state.loopStart = null;
+      this._state.loopEnd = null;
+    }
     this.stop();
     this.doc = doc;
     this.noteIndex = 0;
+    this.waitIndex = 0;
+    this.pendingWaitNotes = [];
     this.activeNotes.clear();
     this._state.currentSeconds = 0;
     bus.emit("document:loaded", { id: doc.id, title: doc.title, totalDuration: doc.totalDuration });
@@ -218,6 +227,8 @@ class SyncEngine {
     this.audio.stopAll();
     this.stopAnimLoop();
     this.noteIndex = 0;
+    this.waitIndex = 0;
+    this.pendingWaitNotes = [];
     this.activeNotes.clear();
     this._state.currentSeconds = 0;
     this.lastBeatCrossed = -1;
@@ -290,7 +301,13 @@ class SyncEngine {
   }
 
   setWaitMode(on: boolean) {
+    if (on && !this._state.waitMode) {
+      const index = this.doc?.notes.findIndex((n) => n.startSeconds >= this._state.currentSeconds) ?? -1;
+      this.waitIndex = index < 0 ? (this.doc?.notes.length ?? 0) : index;
+    }
     this._state.waitMode = on;
+    if (!on) this.pendingWaitNotes = [];
+    this.refreshWait();
     this.emitState(this._state.status);
   }
 
@@ -310,6 +327,7 @@ class SyncEngine {
 
   setActiveHands(hands: Set<"left" | "right">) {
     this._state.activeHands = hands;
+    this.refreshWait();
     this.emitState(this._state.status);
   }
 
@@ -322,6 +340,7 @@ class SyncEngine {
 
   setWaitForHand(hand: "left" | "right" | "both") {
     this._state.waitForHand = hand;
+    this.refreshWait();
   }
 
   async setInstrument(id: InstrumentId): Promise<void> {
@@ -356,13 +375,11 @@ class SyncEngine {
   onMidiInput(midi: number, velocity: number) {
     bus.emit("input:note:on", { midi, velocity });
 
-    if (this._state.status === "waiting") {
-      const expected = this.waitingNote();
-      if (expected && midi === expected.midi) {
-        this._state.status = "playing";
-        this.clock.resume();
-        this.emitState("playing");
-      }
+    if (this._state.status === "waiting" && velocity > 0) {
+      this.pendingWaitNotes = this.pendingWaitNotes.filter(
+        (note) => this.transposeNote(note).midi !== midi
+      );
+      this.refreshWait();
     }
   }
 
@@ -396,6 +413,10 @@ class SyncEngine {
     return () => this.stateListeners.delete(cb);
   }
 
+  get waitingPitches(): number[] {
+    return [...new Set(this.pendingWaitNotes.map((note) => this.transposeNote(note).midi))];
+  }
+
   get state(): Readonly<SyncEngineState> {
     return this._state;
   }
@@ -411,20 +432,46 @@ class SyncEngine {
     this._state.currentSeconds = seconds;
     this.noteIndex = this.doc.notes.findIndex((n) => n.startSeconds >= seconds);
     if (this.noteIndex === -1) this.noteIndex = this.doc.notes.length;
+    this.waitIndex = this.noteIndex;
+    this.pendingWaitNotes = [];
     this.activeNotes.clear();
     // Reset metronome so the first beat at new position doesn't double-fire
     const bpm = this.doc.tempoMap[0]?.bpm ?? 120;
     this.lastBeatCrossed = Math.floor(seconds / (60 / bpm));
   }
 
-  private waitingNote(): NoteEvent | null {
-    if (!this.doc || this.noteIndex >= this.doc.notes.length) return null;
-    const note = this.doc.notes[this.noteIndex];
+  private shouldWaitFor(note: NoteEvent): boolean {
     const { activeHands, waitForHand } = this._state;
-    if (note.hand !== "unknown" && !activeHands.has(note.hand as "left" | "right")) return null;
-    // When waitForHand restricts to one hand, ignore notes from the other hand
-    if (waitForHand !== "both" && note.hand !== "unknown" && note.hand !== waitForHand) return null;
-    return note;
+    return (note.hand === "unknown" || activeHands.has(note.hand)) &&
+      (waitForHand === "both" || note.hand === "unknown" || note.hand === waitForHand);
+  }
+
+  private refreshWait() {
+    this.pendingWaitNotes = this.pendingWaitNotes.filter((note) => this.shouldWaitFor(note));
+    if (this._state.status === "waiting" && this.pendingWaitNotes.length === 0) {
+      this.clock.resume();
+      this.emitState("playing");
+    }
+  }
+
+  private checkWait(docSeconds: number) {
+    if (!this.doc || !this._state.waitMode || this._state.status !== "playing") return;
+    const notes = this.doc.notes;
+    while (this.waitIndex < notes.length && notes[this.waitIndex].startSeconds <= docSeconds) {
+      const onset = notes[this.waitIndex].startSeconds;
+      const group: NoteEvent[] = [];
+      // Match simultaneous notes in either order, including two-handed chords.
+      while (this.waitIndex < notes.length && Math.abs(notes[this.waitIndex].startSeconds - onset) < 0.001) {
+        const note = notes[this.waitIndex++];
+        if (this.shouldWaitFor(note)) group.push(note);
+      }
+      if (group.length > 0) {
+        this.pendingWaitNotes = group;
+        this.clock.pause();
+        this.emitState("waiting");
+        return;
+      }
+    }
   }
 
   /**
@@ -445,7 +492,7 @@ class SyncEngine {
    *   realDelay = docTimeDiff / tempoMultiplier
    */
   private onTick(docSeconds: number) {
-    if (!this.doc) return;
+    if (!this.doc || this._state.status === "waiting") return;
     this._state.currentSeconds = docSeconds;
 
     // ── Metronome ─────────────────────────────────────────────────────────────
@@ -529,7 +576,8 @@ class SyncEngine {
             handVol === 1
               ? tNote
               : { ...tNote, velocity: Math.max(1, Math.round(tNote.velocity * handVol)) };
-          this.audio.playNote(scaledNote);
+          // Keep visual cues and wait-mode matching active at zero volume.
+          if (handVol > 0) this.audio.playNote(scaledNote);
         }
       }, `+${onDelay}`);
 
@@ -538,24 +586,10 @@ class SyncEngine {
         this.audio.stopNote(tNote.midi);
       }, `+${offDelay}`);
 
-      // Wait mode
-      if (this._state.waitMode && this._state.status === "playing") {
-        const isActive =
-          note.hand === "unknown" || this._state.activeHands.has(note.hand as "left" | "right");
-        // Only pause for the targeted hand (waitForHand); "both" = current behavior
-        const isWaited =
-          this._state.waitForHand === "both" ||
-          note.hand === "unknown" ||
-          note.hand === this._state.waitForHand;
-        if (isActive && isWaited && onDelay <= 0.05) {
-          this.clock.pause();
-          this._state.status = "waiting";
-          this.emitState("waiting");
-        }
-      }
-
       this.noteIndex++;
     }
+
+    this.checkWait(docSeconds);
 
     // ── YouTube sync ──────────────────────────────────────────────────────────
     if (this.ytPlayer && this.doc.youtubeId) {
