@@ -21,6 +21,7 @@ interface SpeedTrainerOpts {
 // How many doc-seconds ahead to emit "note:upcoming" for FallingNotes pre-rendering.
 const LOOKAHEAD_DOC_SECONDS = 5.0;
 const YT_DRIFT_THRESHOLD = 0.25;
+const WAIT_EARLY_SECONDS = 0.15;
 
 export interface SyncEngineState {
   status: PlaybackStatus;
@@ -45,6 +46,7 @@ class SyncEngine {
   // Audio scheduling looks ahead; practice matching must track notes independently.
   private waitIndex = 0;
   private pendingWaitNotes: NoteEvent[] = [];
+  private earlyWaitHits = new Set<string>();
   private activeNotes = new Set<string>();
 
   private _state: SyncEngineState = {
@@ -103,6 +105,7 @@ class SyncEngine {
     this.noteIndex = 0;
     this.waitIndex = 0;
     this.pendingWaitNotes = [];
+    this.earlyWaitHits.clear();
     this.activeNotes.clear();
     this._state.currentSeconds = 0;
     bus.emit("document:loaded", { id: doc.id, title: doc.title, totalDuration: doc.totalDuration });
@@ -229,6 +232,7 @@ class SyncEngine {
     this.noteIndex = 0;
     this.waitIndex = 0;
     this.pendingWaitNotes = [];
+    this.earlyWaitHits.clear();
     this.activeNotes.clear();
     this._state.currentSeconds = 0;
     this.lastBeatCrossed = -1;
@@ -301,6 +305,7 @@ class SyncEngine {
   }
 
   setWaitMode(on: boolean) {
+    if (on !== this._state.waitMode) this.earlyWaitHits.clear();
     if (on && !this._state.waitMode) {
       const index = this.doc?.notes.findIndex((n) => n.startSeconds >= this._state.currentSeconds) ?? -1;
       this.waitIndex = index < 0 ? (this.doc?.notes.length ?? 0) : index;
@@ -354,6 +359,7 @@ class SyncEngine {
   // ── Practice feature setters ────────────────────────────────────────────────
 
   setTranspose(semitones: number) {
+    this.earlyWaitHits.clear();
     this.transposeSemitones = Math.round(Math.max(-12, Math.min(12, semitones)));
   }
 
@@ -380,6 +386,8 @@ class SyncEngine {
         (note) => this.transposeNote(note).midi !== midi
       );
       this.refreshWait();
+    } else if (this._state.waitMode && this._state.status === "playing" && velocity > 0 && this.countInTimeouts.length === 0) {
+      this.matchEarlyWaitNote(midi);
     }
   }
 
@@ -434,6 +442,7 @@ class SyncEngine {
     if (this.noteIndex === -1) this.noteIndex = this.doc.notes.length;
     this.waitIndex = this.noteIndex;
     this.pendingWaitNotes = [];
+    this.earlyWaitHits.clear();
     this.activeNotes.clear();
     // Reset metronome so the first beat at new position doesn't double-fire
     const bpm = this.doc.tempoMap[0]?.bpm ?? 120;
@@ -454,6 +463,26 @@ class SyncEngine {
     }
   }
 
+  private matchEarlyWaitNote(midi: number) {
+    if (!this.doc) return;
+    // Input can arrive between clock ticks, before checkWait enters waiting.
+    // Credit only the next practiced onset, never every future copy of a pitch.
+    const deadline = this.clock.currentSeconds + WAIT_EARLY_SECONDS * this._state.tempoMultiplier;
+    const notes = this.doc.notes;
+    let index = this.waitIndex;
+    while (index < notes.length && notes[index].startSeconds <= deadline) {
+      const onset = notes[index].startSeconds;
+      let hasPracticeNotes = false;
+      while (index < notes.length && Math.abs(notes[index].startSeconds - onset) < 0.001) {
+        const note = notes[index++];
+        if (!this.shouldWaitFor(note)) continue;
+        hasPracticeNotes = true;
+        if (this.transposeNote(note).midi === midi) this.earlyWaitHits.add(note.id);
+      }
+      if (hasPracticeNotes) return;
+    }
+  }
+
   private checkWait(docSeconds: number) {
     if (!this.doc || !this._state.waitMode || this._state.status !== "playing") return;
     const notes = this.doc.notes;
@@ -463,7 +492,8 @@ class SyncEngine {
       // Match simultaneous notes in either order, including two-handed chords.
       while (this.waitIndex < notes.length && Math.abs(notes[this.waitIndex].startSeconds - onset) < 0.001) {
         const note = notes[this.waitIndex++];
-        if (this.shouldWaitFor(note)) group.push(note);
+        const alreadyPlayed = this.earlyWaitHits.delete(note.id);
+        if (this.shouldWaitFor(note) && !alreadyPlayed) group.push(note);
       }
       if (group.length > 0) {
         this.pendingWaitNotes = group;

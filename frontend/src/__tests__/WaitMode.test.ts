@@ -41,6 +41,55 @@ beforeEach(async () => {
 });
 
 describe("Wait-mode MIDI matching", () => {
+  it("accepts a correct press before the scheduler enters waiting", async () => {
+    await start([note(60, 1), note(62, 2)]);
+    tick(0.875);
+    transport.seconds = 0.99;
+    engine.onMidiInput(60, 90);
+    engine.onMidiInputOff(60);
+    tick(1.125);
+    expect(engine.state.status).toBe("playing");
+    tick(2);
+    expect(engine.waitingPitches).toEqual([62]);
+  });
+
+  it("keeps early chord pitches and waits only for the remaining pitches", async () => {
+    await start([note(60, 1), note(64, 1), note(67, 1)]);
+    transport.seconds = 0.95;
+    engine.onMidiInput(64, 90);
+    engine.onMidiInput(60, 90);
+    tick(1);
+    expect(engine.waitingPitches).toEqual([67]);
+    engine.onMidiInput(67, 90);
+    expect(engine.state.status).toBe("playing");
+  });
+
+  it("does not let an early press satisfy repeated notes or survive a seek", async () => {
+    await start([note(60, 1), note(60, 1.1)]);
+    transport.seconds = 0.95;
+    engine.onMidiInput(60, 90);
+    tick(1);
+    expect(engine.state.status).toBe("playing");
+    tick(1.125);
+    expect(engine.state.status).toBe("waiting");
+    engine.onMidiInput(60, 90);
+    engine.seek(1);
+    tick(0);
+    expect(engine.waitingPitches).toEqual([60]);
+  });
+
+  it.each([0.5, 1, 2])("limits early matching to 150ms of real time at speed %s", async (speed) => {
+    engine.setTempoMultiplier(speed);
+    await start([note(60, 1)]);
+    transport.seconds = 1 / speed - 0.2;
+    engine.onMidiInput(60, 90);
+    transport.seconds = 1 / speed - 0.1;
+    engine.onMidiInput(72, 90);
+    engine.onMidiInput(60, 0);
+    tick(1 / speed);
+    expect(engine.state.status).toBe("waiting");
+  });
+
   it("silences zero-volume guide notes without muting live input or disabling wait matching", async () => {
     const guide = vi.spyOn(engine.audio, "playNote").mockImplementation(() => {});
     const live = vi.spyOn(engine.audio, "playMidi").mockImplementation(() => {});
