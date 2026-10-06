@@ -3,6 +3,7 @@ import { syncEngine } from "../engine/SyncEngine";
 import bus from "../engine/EventBus";
 import type { MusicDocument, PlaybackStatus, NoteEvent, Finger } from "@bach-to-basics/shared";
 import type { InstrumentId } from "../engine/AudioEngine";
+import { applyFingeringMarks, type FingeringMark } from "../utils/fingeringMapping";
 export { computeMeasureSeconds, keySignatureToLabel } from "@bach-to-basics/shared";
 export type { InstrumentId } from "../engine/AudioEngine";
 export { INSTRUMENT_LABELS } from "../engine/AudioEngine";
@@ -503,12 +504,17 @@ export const useAppStore = create<AppState>((set, get) => {
         const { musicxml: annotatedXml } = (await res.json()) as { musicxml: string };
 
         const updatedNotes = applyFingeringFromXml(doc.notes, annotatedXml);
+        const fingeringCount = updatedNotes.reduce(
+          (count, note) => count + (note.finger !== null ? 1 : 0),
+          0
+        );
+        if (fingeringCount === 0) {
+          throw new Error("Fingering generation completed, but no fingerings could be matched.");
+        }
 
-        // Guard: don't overwrite if the user loaded a different document while we waited
+        // Guard: don't overwrite if the user loaded a different document while we waited.
         const { document: currentDoc } = get();
         if (currentDoc?.id === doc.id) {
-          // Note: we deliberately do NOT replace `musicXml` with the annotated
-          // version - fingerings are a piano-keyboard-only overlay.
           const updatedDoc = {
             ...currentDoc,
             notes: updatedNotes,
@@ -518,11 +524,12 @@ export const useAppStore = create<AppState>((set, get) => {
             document: updatedDoc,
             settings: { ...s.settings, showFingering: true },
           }));
-          // Hand SyncEngine the updated notes WITHOUT resetting playback -
-          // notes already scheduled within the lookahead window keep their
-          // old (no-finger) values, but everything beyond it picks up the
-          // new fingerings. This lets the user keep playing through Generate.
+
+          // Replace engine note data and rebuild pending scheduling from the
+          // current position so notes already inside the lookahead window also
+          // pick up the newly generated fingerings.
           syncEngine.updateDocumentNotes(updatedNotes);
+          syncEngine.seek(syncEngine.state.currentSeconds);
         }
       } catch (err) {
         set({ loadError: String(err) });
@@ -886,18 +893,17 @@ const CIRCLED_FINGER_TO_DIGIT: Record<string, string> = {
 function applyFingeringFromXml(notes: NoteEvent[], annotatedXml: string): NoteEvent[] {
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(annotatedXml, "application/xml");
+  if (xmlDoc.querySelector("parsererror")) return notes.map((note) => ({ ...note }));
 
-  // Collect finger numbers per hand, in document order
-  const fingersByHand: Record<"left" | "right", (Finger | null)[]> = { left: [], right: [] };
-
+  const marks: FingeringMark[] = [];
   const parts = Array.from(xmlDoc.querySelectorAll("part"));
+
   for (const part of parts) {
     const noteEls = Array.from(part.querySelectorAll("note"));
-
-    // First pass: do these notes carry <staff> info? (typical for piano grand-staff)
     let hasStaff = false;
-    let pitchSum = 0,
-      pitchCount = 0;
+    let pitchSum = 0;
+    let pitchCount = 0;
+
     for (const el of noteEls) {
       if (el.querySelector("rest")) continue;
       if (el.querySelector("staff")) hasStaff = true;
@@ -909,18 +915,27 @@ function applyFingeringFromXml(notes: NoteEvent[], annotatedXml: string): NoteEv
         pitchCount++;
       }
     }
+
     const fallbackHand: "left" | "right" =
       (pitchCount > 0 ? pitchSum / pitchCount : 60) >= 60 ? "right" : "left";
 
-    // Second pass: bucket fingerings into the correct hand
     for (const el of noteEls) {
       if (el.querySelector("rest")) continue;
 
-      // Determine hand: prefer <staff> (1 = right/treble, 2 = left/bass), else fallback
-      let handKey: "left" | "right" = fallbackHand;
+      const tieTypes = Array.from(el.querySelectorAll("tie, tied"))
+        .map((tie) => tie.getAttribute("type") ?? "");
+      if (tieTypes.some((type) => type === "stop" || type === "continue")) continue;
+
+      const step = el.querySelector("pitch > step")?.textContent ?? "";
+      if (!step) continue;
+      const octave = Number(el.querySelector("pitch > octave")?.textContent ?? 0);
+      const alter = Number(el.querySelector("pitch > alter")?.textContent ?? 0);
+      const midi = xmlStepToMidi(step, octave, alter);
+
+      let hand: "left" | "right" = fallbackHand;
       if (hasStaff) {
         const staff = Number(el.querySelector("staff")?.textContent ?? 1);
-        handKey = staff === 2 ? "left" : "right";
+        hand = staff === 2 ? "left" : "right";
       }
 
       const fingeringEl =
@@ -931,29 +946,12 @@ function applyFingeringFromXml(notes: NoteEvent[], annotatedXml: string): NoteEv
       const finger: Finger | null = /^[1-5]$/.test(normalized)
         ? (Number(normalized) as Finger)
         : null;
-      fingersByHand[handKey].push(finger);
+
+      marks.push({ midi, hand, finger });
     }
   }
 
-  // Collect per-hand NoteEvent indices (already sorted by startSeconds in the flat array)
-  const idxByHand: Record<"left" | "right" | "unknown", number[]> = {
-    left: [],
-    right: [],
-    unknown: [],
-  };
-  notes.forEach((note, idx) => idxByHand[note.hand].push(idx));
-
-  // Splice in fingerings by index
-  const updated = notes.map((n) => ({ ...n }));
-  for (const hand of ["left", "right"] as const) {
-    const eventIdxs = idxByHand[hand];
-    const fingers = fingersByHand[hand];
-    const count = Math.min(eventIdxs.length, fingers.length);
-    for (let i = 0; i < count; i++) {
-      updated[eventIdxs[i]] = { ...updated[eventIdxs[i]], finger: fingers[i] };
-    }
-  }
-  return updated;
+  return applyFingeringMarks(notes, marks);
 }
 
 async function fetchMidiFromXml(
