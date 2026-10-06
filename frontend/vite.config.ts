@@ -1,11 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { alphaTab } from "@coderline/alphatab-vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { resolve } from "path";
 
 export default defineConfig({
   plugins: [
+    alphaTab(),
     react(),
     tailwindcss(),
     VitePWA({

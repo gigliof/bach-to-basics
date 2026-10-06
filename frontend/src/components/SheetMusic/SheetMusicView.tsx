@@ -48,7 +48,12 @@ export function SheetMusicView() {
       const horizontal = useAppStore.getState().settings.layoutMode === "all";
 
       const api = new AlphaTabApi(containerRef.current, {
-        core: { engine: "svg", enableLazyLoading: false, logLevel: 0 },
+        core: {
+          engine: "svg",
+          enableLazyLoading: false,
+          logLevel: 0,
+          fontDirectory: "/font/",
+        },
         display: {
           layoutMode: horizontal ? 1 : 0, // 1 = horizontal strip, 0 = page (vertical)
           // Smaller scale in the horizontal "all" band so the full grand staff
@@ -59,7 +64,9 @@ export function SheetMusicView() {
           // a printed score).  A very small value (0.1) avoids a ragged right
           // edge on the last system without visibly compressing the spacing.
           stretchForce: 0.1,
-          staveProfile: 0,
+          // Piano-only app: always render standard notation instead of relying
+          // on alphaTab's auto-detected stave profile.
+          staveProfile: 2,
         },
         player: {
           // enablePlayer: true is required for cursor/highlight rendering.
@@ -86,22 +93,55 @@ export function SheetMusicView() {
         /* ignore */
       }
 
-      // ── Mark score as rendered so cursor/scroll can activate ─────────────
+      // ── Surface alphaTab's async errors instead of leaving a blank pane ─
+      // Importer/renderer failures are reported through this event rather than
+      // being thrown synchronously from api.load().
       try {
-        api.scoreLoaded.on(() => {
-          scoreLoaded.current = true;
+        api.error.on((error: Error) => {
+          const message = error?.message || String(error);
+          useAppStore.setState({ loadError: `Sheet music error: ${message}` });
         });
       } catch {
         /* ignore */
       }
 
+      // ── Mark score as loaded + render every imported track ───────────────
+      // MusicXML produced by music21 can contain separate treble/bass tracks.
+      // Render all imported tracks instead of leaving alphaTab on the first one.
+      const expandedScores = new WeakSet<object>();
+      try {
+        api.scoreLoaded.on((score) => {
+          scoreLoaded.current = true;
+          const tracks = score.tracks;
+          if (tracks.length > 1 && !expandedScores.has(score)) {
+            expandedScores.add(score);
+            api.renderTracks(tracks);
+          }
+        });
+      } catch {
+        /* ignore */
+      }
+
+      const loadScoreData = (data: Uint8Array, label: string) => {
+        scoreLoaded.current = false;
+        const accepted = api.load(data);
+        if (!accepted) {
+          useAppStore.setState({
+            loadError: `alphaTab could not recognize the current ${label} data.`,
+          });
+        }
+      };
+
       // ── Load score if MusicXML is already available ──────────────────────
       const initialDoc = useAppStore.getState().document;
       if (initialDoc?.musicXml) {
-        api.load(new TextEncoder().encode(sanitizeMusicXml(initialDoc.musicXml)));
+        loadScoreData(
+          new TextEncoder().encode(sanitizeMusicXml(initialDoc.musicXml)),
+          "MusicXML"
+        );
       } else if (initialDoc?.mxlBuffer) {
         // .mxl is ZIP-compressed MusicXML; AlphaTab handles it natively
-        api.load(new Uint8Array(initialDoc.mxlBuffer));
+        loadScoreData(new Uint8Array(initialDoc.mxlBuffer), ".mxl");
       }
 
       // ── Click note to play sound ─────────────────────────────────────────
@@ -259,11 +299,19 @@ export function SheetMusicView() {
     }
     if (doc?.musicXml) {
       scoreLoaded.current = false;
-      apiRef.current.load(new TextEncoder().encode(sanitizeMusicXml(doc.musicXml)));
+      const accepted = apiRef.current.load(
+        new TextEncoder().encode(sanitizeMusicXml(doc.musicXml))
+      );
+      if (!accepted) {
+        useAppStore.setState({ loadError: "alphaTab could not recognize the current MusicXML data." });
+      }
     } else if (doc?.mxlBuffer) {
       // .mxl is ZIP-compressed MusicXML; AlphaTab handles it natively
       scoreLoaded.current = false;
-      apiRef.current.load(new Uint8Array(doc.mxlBuffer));
+      const accepted = apiRef.current.load(new Uint8Array(doc.mxlBuffer));
+      if (!accepted) {
+        useAppStore.setState({ loadError: "alphaTab could not recognize the current .mxl data." });
+      }
     }
   }, [doc?.musicXml, doc?.mxlBuffer]);
 

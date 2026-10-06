@@ -80,6 +80,9 @@ importers:
         specifier: ^5.0.13
         version: 5.0.13(@types/react@19.2.17)(react@19.2.7)
     devDependencies:
+      '@coderline/alphatab-vite':
+        specifier: ^1.8.3
+        version: 1.8.3(vite@8.1.0(jiti@2.7.0)(terser@5.48.0)(yaml@2.8.4))
       '@tailwindcss/vite':
         specifier: ^4.3.1
         version: 4.3.1(vite@8.1.0(jiti@2.7.0)(terser@5.48.0)(yaml@2.8.4))
@@ -642,6 +645,12 @@ packages:
   '@babel/types@7.29.7':
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
+
+  '@coderline/alphatab-vite@1.8.3':
+    resolution: {integrity: sha512-R9GXqX+w/q+x3/al10N68adcRVfqHfAOBdpj+i2B3GoR4RByy+q2giWOh7IxK+rohgI9hobEayeFc908l9eqXg==}
+    engines: {node: '>=20.19.0'}
+    peerDependencies:
+      vite: ^7 || ^8
 
   '@coderline/alphatab@1.8.3':
     resolution: {integrity: sha512-gauoZMBL3yzCNn4jz5qhKSmwnlwFpBG+W+HPowiBmPiD6kTH5Ntk3mCUItGqETN7Vl97REXJK6efGKOa13B4Ng==}
@@ -3630,6 +3639,11 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
+
+  '@coderline/alphatab-vite@1.8.3(vite@8.1.0(jiti@2.7.0)(terser@5.48.0)(yaml@2.8.4))':
+    dependencies:
+      magic-string: 0.30.21
+      vite: 8.1.0(jiti@2.7.0)(terser@5.48.0)(yaml@2.8.4)
 
   '@coderline/alphatab@1.8.3': {}
 
