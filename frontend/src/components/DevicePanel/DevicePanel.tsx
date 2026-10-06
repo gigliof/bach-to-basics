@@ -20,7 +20,7 @@ export function DevicePanel() {
         WebMidi.addListener("connected", () => setInputs(WebMidi.inputs.map((i) => i.name)));
         WebMidi.addListener("disconnected", (e) => {
           setInputs(WebMidi.inputs.map((i) => i.name));
-          if (e.port.name === midiDeviceName) setMidiDevice(null);
+          if (e.port.name === useAppStore.getState().midiDeviceName) setMidiDevice(null);
         });
       })
       .catch((err: unknown) => {
@@ -59,8 +59,10 @@ export function DevicePanel() {
     }
     const input = WebMidi.getInputByName(name);
     if (!input) return;
-    input.addListener("noteon", (e) => syncEngine.onMidiInput(e.note.number, e.rawValue ?? 64));
-    input.addListener("noteoff", (e) => syncEngine.onMidiInputOff(e.note.number));
+    input.addListener("noteon", (e) => {
+      void syncEngine.playMidi(e.note.number, e.rawValue ?? 64);
+    });
+    input.addListener("noteoff", (e) => syncEngine.stopMidi(e.note.number));
     setMidiDevice(name);
     setOpen(false);
   };
