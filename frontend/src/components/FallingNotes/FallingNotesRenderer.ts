@@ -772,19 +772,24 @@ export class FallingNotesRenderer {
         }
       }
 
+      // Start the sustain ghost as soon as the written note ends while CC64
+      // remains down. The previous implementation waited until the bar was 60px
+      // past the hit line, so short pedal holds often ended before any ghost appeared.
+      if (
+        doSustained &&
+        sustainActive &&
+        currentSeconds >= bar.note.endSeconds &&
+        !this.sustainedNotes.has(id)
+      ) {
+        this.sustainedNotes.set(id, {
+          midi: bar.note.midi,
+          baseColor: bar.baseColor,
+          endSeconds: bar.note.endSeconds,
+        });
+      }
+
       // ── Recycle ─────────────────────────────────────────────────────────────
       if (bar.container.y > hitY + 60) {
-        // Transition into sustained-ghost tracking before recycling bar
-        if (doSustained && sustainActive) {
-          const timeAfterEnd = currentSeconds - bar.note.endSeconds;
-          if (timeAfterEnd < 3.0) {
-            this.sustainedNotes.set(id, {
-              midi: bar.note.midi,
-              baseColor: bar.baseColor,
-              endSeconds: bar.note.endSeconds,
-            });
-          }
-        }
         bar.reset();
         this.pool.push(bar);
         this.active.delete(id);

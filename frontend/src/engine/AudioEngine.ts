@@ -146,7 +146,7 @@ export class AudioEngine {
     // Resume in case the AudioContext was created before a user gesture (browser
     // autoplay policy starts it suspended). Fire-and-forget, resolves quickly.
     this.ctx?.resume();
-    this.player.start({ note: note.midi, velocity: note.velocity, stopId: note.midi });
+    this.player.start({ note: note.midi, velocity: note.velocity, stopId: note.id });
   }
 
   /** Play a single MIDI note by number - for virtual keyboard clicks. */
@@ -157,9 +157,9 @@ export class AudioEngine {
     this.player.start({ note: midi, velocity, stopId: midi });
   }
 
-  stopNote(midi: number) {
+  stopNote(midi: number, stopId: number | string = midi) {
     if (!this.player || !this._loaded) return;
-    this.player.stop({ stopId: midi });
+    this.player.stop({ stopId });
   }
 
   stopAll() {

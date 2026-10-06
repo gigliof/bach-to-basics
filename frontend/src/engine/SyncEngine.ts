@@ -32,11 +32,13 @@ export interface SyncEngineState {
   activeHands: Set<"left" | "right">;
   metronomeEnabled: boolean;
   handVolume: { left: number; right: number };
+  /** Real-time CC64 state from the connected MIDI input. */
+  sustainPedalDown: boolean;
   /** Which hand(s) trigger wait-mode pauses. Only relevant when waitMode is on. */
   waitForHand: "left" | "right" | "both";
 }
 
-class SyncEngine {
+export class SyncEngine {
   private clock = new MidiClock();
   readonly audio = new AudioEngine();
 
@@ -54,6 +56,7 @@ class SyncEngine {
     activeHands: new Set(["left", "right"]),
     metronomeEnabled: false,
     handVolume: { left: 1, right: 1 },
+    sustainPedalDown: false,
     waitForHand: "both",
   };
 
@@ -70,6 +73,12 @@ class SyncEngine {
   // If the user releases a key before the load completes, the entry is removed
   // so the note never fires - preventing stuck/echoing notes.
   private pendingMidiPlays = new Set<number>();
+  // Notes physically released while CC64 is held remain sounding until pedal-up.
+  private sustainedInputMidis = new Set<number>();
+
+  // Exact MIDI pitches the player must hit before wait-mode playback resumes.
+  // Stored explicitly because noteIndex advances several seconds ahead for rendering/audio scheduling.
+  private waitingMidis = new Set<number>();
 
   // ── Practice features ───────────────────────────────────────────────────────
   private renderOffsetMs = 0;
@@ -95,6 +104,7 @@ class SyncEngine {
     this.doc = doc;
     this.noteIndex = 0;
     this.activeNotes.clear();
+    this.waitingMidis.clear();
     this._state.currentSeconds = 0;
     bus.emit("document:loaded", { id: doc.id, title: doc.title, totalDuration: doc.totalDuration });
     this.emitState("stopped");
@@ -216,9 +226,11 @@ class SyncEngine {
     this._cancelCountIn();
     this.clock.stop();
     this.audio.stopAll();
+    this.sustainedInputMidis.clear();
     this.stopAnimLoop();
     this.noteIndex = 0;
     this.activeNotes.clear();
+    this.waitingMidis.clear();
     this._state.currentSeconds = 0;
     this.lastBeatCrossed = -1;
     this.emitState("stopped");
@@ -236,6 +248,7 @@ class SyncEngine {
 
     // Cancel pending Tone events so notes don't fire from the old position
     Tone.getTransport().cancel();
+    this.waitingMidis.clear();
 
     this.seekTo(seconds);
     this.audio.stopAll();
@@ -274,6 +287,7 @@ class SyncEngine {
       bus.emit("transport:seek", { seconds: currentSec }); // release pressed keys
       Tone.getTransport().cancel();
       this.audio.stopAll();
+      this.waitingMidis.clear();
       this.seekTo(currentSec); // resets noteIndex + activeNotes
       this.clock.reschedule(currentSec);
       this.clock.resume();
@@ -290,7 +304,31 @@ class SyncEngine {
   }
 
   setWaitMode(on: boolean) {
+    if (this._state.waitMode === on) {
+      this.emitState(this._state.status);
+      return;
+    }
+
     this._state.waitMode = on;
+
+    // Notes are scheduled several seconds ahead. Rebuild the pending schedule when
+    // wait mode changes so already-buffered notes immediately follow the new mode.
+    const isActive = this._state.status === "playing" || this._state.status === "waiting";
+    if (isActive) {
+      const currentSec = this.clock.currentSeconds;
+      this.clock.pause();
+      bus.emit("transport:seek", { seconds: currentSec });
+      Tone.getTransport().cancel();
+      this.audio.stopAll();
+      this.waitingMidis.clear();
+      this.seekTo(currentSec);
+      this.clock.reschedule(currentSec);
+      this.clock.resume();
+      this._state.status = "playing";
+    } else {
+      this.waitingMidis.clear();
+    }
+
     this.emitState(this._state.status);
   }
 
@@ -356,23 +394,25 @@ class SyncEngine {
   onMidiInput(midi: number, velocity: number) {
     bus.emit("input:note:on", { midi, velocity });
 
-    if (this._state.status === "waiting") {
-      const expected = this.waitingNote();
-      if (expected && midi === expected.midi) {
-        this._state.status = "playing";
+    if (this._state.status === "waiting" && this.waitingMidis.has(midi)) {
+      this.waitingMidis.delete(midi);
+      if (this.waitingMidis.size === 0) {
         this.clock.resume();
         this.emitState("playing");
       }
     }
   }
 
-  /** Play a note through the audio engine immediately (for virtual keyboard clicks). */
+  /** Play a note through the audio engine immediately (for virtual/hardware keyboard input). */
   async playMidi(midi: number, velocity = 90) {
+    // Re-striking a pitch that is still ringing under sustain should replace the
+    // old voice instead of stacking indefinitely under the same MIDI stop id.
+    if (this.sustainedInputMidis.delete(midi)) this.audio.stopNote(midi);
+
     // Emit input:note:on synchronously so the key lights up with no delay.
     this.onMidiInput(midi, velocity);
     // Register this MIDI as pending. If stopMidi() fires before audio loads
-    // (user tapped quickly), the entry is removed and we skip the play call -
-    // preventing the "echo" where a note sustains after the key was released.
+    // (user tapped quickly), the entry is removed and we skip the play call.
     this.pendingMidiPlays.add(midi);
     await this.audio.load();
     if (this.pendingMidiPlays.has(midi)) {
@@ -383,8 +423,30 @@ class SyncEngine {
 
   stopMidi(midi: number) {
     this.pendingMidiPlays.delete(midi); // cancel play if still loading
-    this.audio.stopNote(midi);
+    if (this._state.sustainPedalDown) {
+      this.sustainedInputMidis.add(midi);
+    } else {
+      this.audio.stopNote(midi);
+    }
+    // Physical key-up is still emitted immediately; sustain is represented
+    // separately by CC64 state rather than pretending the key remains held.
     this.onMidiInputOff(midi);
+  }
+
+  /** Update real-time CC64 state from a connected MIDI input device. */
+  setSustainPedal(down: boolean) {
+    if (this._state.sustainPedalDown === down) return;
+    this._state.sustainPedalDown = down;
+    bus.emit("input:sustain", { down });
+
+    if (!down && this.sustainedInputMidis.size > 0) {
+      for (const midi of this.sustainedInputMidis) this.audio.stopNote(midi);
+      this.sustainedInputMidis.clear();
+    }
+
+    // Pedal changes are input state, not a transport transition; notify React
+    // listeners without emitting a misleading transport:stateChange event.
+    for (const cb of this.stateListeners) cb({ ...this._state });
   }
 
   onMidiInputOff(midi: number) {
@@ -417,19 +479,34 @@ class SyncEngine {
     this.lastBeatCrossed = Math.floor(seconds / (60 / bpm));
   }
 
-  private waitingNote(): NoteEvent | null {
-    if (!this.doc || this.noteIndex >= this.doc.notes.length) return null;
-    const note = this.doc.notes[this.noteIndex];
+  private shouldWaitFor(note: NoteEvent): boolean {
     const { activeHands, waitForHand } = this._state;
-    if (note.hand !== "unknown" && !activeHands.has(note.hand as "left" | "right")) return null;
-    // When waitForHand restricts to one hand, ignore notes from the other hand
-    if (waitForHand !== "both" && note.hand !== "unknown" && note.hand !== waitForHand) return null;
-    return note;
+    const isActive =
+      note.hand === "unknown" || activeHands.has(note.hand as "left" | "right");
+    const isWaited =
+      waitForHand === "both" || note.hand === "unknown" || note.hand === waitForHand;
+    return isActive && isWaited;
   }
 
   /**
-   * Applies transposition to a note, clamping to the 88-key range (A0-C8).
-   * Returns the original note object unchanged if transposeSemitones is 0.
+   * Return the audible note-off time after applying the source MIDI's CC64 ranges.
+   * The visual key/note release still happens at note.endSeconds; only audio rings
+   * until the pedal-up boundary.
+   */
+  private sustainedEndSeconds(endSeconds: number): number {
+    const ranges = this.doc?.sustainRanges;
+    if (!ranges?.length) return endSeconds;
+    for (const range of ranges) {
+      if (range.startSeconds > endSeconds) break;
+      if (endSeconds >= range.startSeconds && endSeconds < range.endSeconds) {
+        return range.endSeconds;
+      }
+    }
+    return endSeconds;
+  }
+
+  /**
+   * Apply semitone transposition, clamped to the 88-key piano range (A0-C8).
    */
   private transposeNote(note: NoteEvent): NoteEvent {
     if (this.transposeSemitones === 0) return note;
@@ -488,6 +565,8 @@ class SyncEngine {
     }
 
     // ── Schedule upcoming notes ───────────────────────────────────────────────
+    // Groups let simultaneous waited notes (chords) become one wait target.
+    const waitGroups = new Map<number, { midis: Set<number>; notes: NoteEvent[] }>();
     const notes = this.doc.notes;
     while (this.noteIndex < notes.length) {
       const note = notes[this.noteIndex];
@@ -511,47 +590,74 @@ class SyncEngine {
       const onDelay = Math.max(0, (note.startSeconds - docSeconds) / tempoMultiplier - offsetSec);
       const offDelay = Math.max(0, (note.endSeconds - docSeconds) / tempoMultiplier - offsetSec);
 
-      Tone.getTransport().scheduleOnce(() => {
-        // Read activeHands at fire-time so hand toggles take effect immediately
-        // (not at schedule-time, which would lag up to LOOKAHEAD_DOC_SECONDS).
-        const isActive =
-          note.hand === "unknown" || this._state.activeHands.has(note.hand as "left" | "right");
-        if (isActive) {
-          bus.emit("note:on", tNote);
-          // Apply per-hand volume multiplier (also read at fire-time for instant effect)
-          const handVol =
-            note.hand === "left"
-              ? this._state.handVolume.left
-              : note.hand === "right"
-                ? this._state.handVolume.right
-                : 1;
-          const scaledNote =
-            handVol === 1
-              ? tNote
-              : { ...tNote, velocity: Math.max(1, Math.round(tNote.velocity * handVol)) };
-          this.audio.playNote(scaledNote);
-        }
-      }, `+${onDelay}`);
+      const shouldWait = this._state.waitMode && this.shouldWaitFor(note);
 
-      Tone.getTransport().scheduleOnce(() => {
-        bus.emit("note:off", tNote);
-        this.audio.stopNote(tNote.midi);
-      }, `+${offDelay}`);
+      if (shouldWait) {
+        // Waited notes are cues for the player, not notes the app should perform.
+        // The callback fires at the real onset, independent of the 5-second lookahead cursor.
+        const onset = note.startSeconds;
+        let group = waitGroups.get(onset);
+        if (!group) {
+          group = { midis: new Set<number>(), notes: [] };
+          waitGroups.set(onset, group);
+          const waitGroup = group;
+          Tone.getTransport().scheduleOnce(() => {
+            if (!this._state.waitMode || this._state.status !== "playing") return;
+            this.waitingMidis = new Set(waitGroup.midis);
+            if (this.waitingMidis.size === 0) return;
 
-      // Wait mode
-      if (this._state.waitMode && this._state.status === "playing") {
-        const isActive =
-          note.hand === "unknown" || this._state.activeHands.has(note.hand as "left" | "right");
-        // Only pause for the targeted hand (waitForHand); "both" = current behavior
-        const isWaited =
-          this._state.waitForHand === "both" ||
-          note.hand === "unknown" ||
-          note.hand === this._state.waitForHand;
-        if (isActive && isWaited && onDelay <= 0.05) {
-          this.clock.pause();
-          this._state.status = "waiting";
-          this.emitState("waiting");
+            // Expose the target notes to the keyboard/accuracy UI, but do not
+            // send them to the audio engine; the player supplies these notes.
+            for (const waitNote of waitGroup.notes) bus.emit("note:on", waitNote);
+            this.clock.pause();
+            this.emitState("waiting");
+          }, `+${onDelay}`);
         }
+        group.midis.add(tNote.midi);
+        group.notes.push(tNote);
+
+        // Close the visual/accuracy target after playback resumes and the note
+        // duration elapses. No audio stop is needed because the app never played it.
+        Tone.getTransport().scheduleOnce(() => {
+          bus.emit("note:off", tNote);
+        }, `+${offDelay}`);
+      } else {
+        Tone.getTransport().scheduleOnce(() => {
+          // Read activeHands at fire-time so hand toggles take effect immediately
+          // (not at schedule-time, which would lag up to LOOKAHEAD_DOC_SECONDS).
+          const isActive =
+            note.hand === "unknown" || this._state.activeHands.has(note.hand as "left" | "right");
+          if (isActive) {
+            bus.emit("note:on", tNote);
+            // Apply per-hand volume multiplier (also read at fire-time for instant effect)
+            const handVol =
+              note.hand === "left"
+                ? this._state.handVolume.left
+                : note.hand === "right"
+                  ? this._state.handVolume.right
+                  : 1;
+            const scaledNote =
+              handVol === 1
+                ? tNote
+                : { ...tNote, velocity: Math.max(1, Math.round(tNote.velocity * handVol)) };
+            this.audio.playNote(scaledNote);
+          }
+        }, `+${onDelay}`);
+
+        // Visual key-up follows the written note duration.
+        Tone.getTransport().scheduleOnce(() => {
+          bus.emit("note:off", tNote);
+        }, `+${offDelay}`);
+
+        // Audio release follows source CC64 if the MIDI file contains sustain.
+        const sustainedEnd = this.sustainedEndSeconds(note.endSeconds);
+        const audioOffDelay = Math.max(
+          0,
+          (sustainedEnd - docSeconds) / tempoMultiplier - offsetSec
+        );
+        Tone.getTransport().scheduleOnce(() => {
+          this.audio.stopNote(tNote.midi, tNote.id);
+        }, `+${audioOffDelay}`);
       }
 
       this.noteIndex++;
