@@ -47,20 +47,20 @@ _auth_warned = False
 
 def _require_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
     global _auth_warned
-    expected = os.environ.get("BACKEND_API_KEY")
-    # T1-1: only treat *absent* key (None) as "auth disabled".
-    # An empty string means a deployment misconfiguration, not "no auth".
-    if expected is None:
+    expected = (os.environ.get("BACKEND_API_KEY") or "").strip()
+
+    # Local/self-hosted mode intentionally allows an empty key. REQUIRE_AUTH is
+    # the explicit production fail-fast switch enforced at startup below.
+    # This matches .env.example and Docker Compose's default empty value.
+    if not expected:
         if not _auth_warned:
             logging.warning(
-                "BACKEND_API_KEY is not set - all API endpoints are unauthenticated. "
-                "Set this env var in production."
+                "BACKEND_API_KEY is empty - all API endpoints are unauthenticated. "
+                "Set BACKEND_API_KEY and REQUIRE_AUTH=1 for a protected deployment."
             )
             _auth_warned = True
-        return  # auth genuinely not configured (dev mode)
-    if not expected:
-        # Empty string = broken deployment config; reject loudly
-        raise HTTPException(status_code=500, detail="Server authentication misconfigured")
+        return
+
     # T2-2: constant-time comparison prevents timing-based key extraction
     if not hmac.compare_digest(key or "", expected):
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -72,7 +72,7 @@ def _startup_checks() -> None:
     """Log warnings for optional external binaries that are absent at launch."""
     # M1: fail fast if auth is explicitly required but no key is configured
     if os.environ.get("REQUIRE_AUTH", "").strip().lower() in ("1", "true", "yes"):
-        if not os.environ.get("BACKEND_API_KEY"):
+        if not (os.environ.get("BACKEND_API_KEY") or "").strip():
             raise SystemExit(
                 "FATAL: REQUIRE_AUTH is set but BACKEND_API_KEY is empty. "
                 "Set BACKEND_API_KEY or unset REQUIRE_AUTH."
