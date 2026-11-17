@@ -35,24 +35,24 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "concurrently": "^9.0.0",
-    "eslint": "^10.5.0",
+    "concurrently": "^9.2.5",
+    "eslint": "^10.15.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
+    "eslint-plugin-react-refresh": "^0.5.8",
     "husky": "^9.1.7",
-    "lint-staged": "^17.0.4",
-    "prettier": "^3.8.3",
-    "typescript-eslint": "^8.59.4"
+    "lint-staged": "^17.6.1",
+    "prettier": "^3.10.1",
+    "typescript-eslint": "^8.73.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild"
     ],
     "overrides": {
-      "@xmldom/xmldom": "0.8.13",
-      "shell-quote": ">=1.8.4",
-      "@babel/core": ">=7.29.6"
+      "@xmldom/xmldom": "^0.8.15",
+      "shell-quote": ">=1.11.0",
+      "@babel/core": "^7.29.6"
     }
   }
 }
