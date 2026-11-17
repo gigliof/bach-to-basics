@@ -34,6 +34,7 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@coderline/alphatab-vite": "^1.9.0",
     "@tailwindcss/vite": "^4.3.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

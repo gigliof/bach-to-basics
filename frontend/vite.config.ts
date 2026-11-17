@@ -2,10 +2,15 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { alphaTab } from "@coderline/alphatab-vite";
 import { resolve } from "path";
 
 export default defineConfig({
   plugins: [
+    // Copies alphaTab's notation font (Bravura) into the build at /font/ and wires
+    // its worker. Without it, production builds request a font that doesn't exist,
+    // the SPA fallback serves index.html instead, and the sheet renders blank.
+    alphaTab(),
     react(),
     tailwindcss(),
     VitePWA({
@@ -61,7 +66,9 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
 
         // Don't try to precache the soundfont folder (large; fetched lazily by AlphaTab).
-        globIgnores: ["**/soundfont/**"],
+        // Bravura.svg is a legacy font format browsers never load (they use .woff2);
+        // matching the "svg" glob above would add 1.8 MB to the offline cache.
+        globIgnores: ["**/soundfont/**", "**/font/Bravura.svg"],
 
         // Critical: NEVER cache backend API calls - we want fresh data, not a stale
         // cached response (e.g. old fingerings, old transcription results).
