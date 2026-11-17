@@ -52,7 +52,8 @@
     "overrides": {
       "@xmldom/xmldom": "^0.8.15",
       "shell-quote": ">=1.11.0",
-      "@babel/core": "^7.29.6"
+      "@babel/core": "^7.29.6",
+      "workbox-build>glob": "^14.0.2"
     }
   }
 }
