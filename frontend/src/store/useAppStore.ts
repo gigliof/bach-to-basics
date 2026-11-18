@@ -505,6 +505,18 @@ export const useAppStore = create<AppState>((set, get) => {
 
         const updatedNotes = applyFingeringFromXml(doc.notes, annotatedXml);
 
+        // If nothing could be matched onto the playback notes, say so instead of
+        // silently "succeeding" with no finger numbers anywhere.
+        if (!updatedNotes.some((n) => n.finger !== null)) {
+          if (get().document?.id === doc.id) {
+            set({
+              loadError:
+                "Fingering was generated, but none of it could be matched to this piece's notes, so no finger numbers are shown.",
+            });
+          }
+          return;
+        }
+
         // Guard: don't overwrite if the user loaded a different document while we waited
         const { document: currentDoc } = get();
         if (currentDoc?.id === doc.id) {

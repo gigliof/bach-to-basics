@@ -279,22 +279,29 @@ class SyncEngine {
 
     // If playing, all Tone.js note:on/note:off callbacks were scheduled at the
     // OLD tempo rate and will now fire at the wrong wall-clock time.
-    // Solution: same as seek() - cancel pending Tone events, reset the note
-    // cursor, and reschedule everything at the new rate from the current position.
-    const isActive = this._state.status === "playing" || this._state.status === "waiting";
-    if (isActive) {
-      const currentSec = this._state.currentSeconds;
-      this.clock.pause();
-      bus.emit("transport:seek", { seconds: currentSec }); // release pressed keys
-      Tone.getTransport().cancel();
-      this.audio.stopAll();
-      this.seekTo(currentSec); // resets noteIndex + activeNotes
-      this.clock.reschedule(currentSec);
-      this.clock.resume();
-      this._state.status = "playing";
-    }
-
+    this.rescheduleIfActive();
     this.emitState(this._state.status);
+  }
+
+  /**
+   * Notes are scheduled into Tone.js up to LOOKAHEAD_DOC_SECONDS ahead with
+   * values captured at schedule time (pitch, timing). After a setting that
+   * changes those values, cancel the pending events and reschedule from the
+   * current position - same as seek() - so the change applies immediately
+   * instead of seconds later.
+   */
+  private rescheduleIfActive() {
+    const isActive = this._state.status === "playing" || this._state.status === "waiting";
+    if (!isActive) return;
+    const currentSec = this._state.currentSeconds;
+    this.clock.pause();
+    bus.emit("transport:seek", { seconds: currentSec }); // release pressed keys
+    Tone.getTransport().cancel();
+    this.audio.stopAll();
+    this.seekTo(currentSec); // resets noteIndex + activeNotes
+    this.clock.reschedule(currentSec);
+    this.clock.resume();
+    this._state.status = "playing";
   }
 
   setLoopPoints(start: number | null, end: number | null) {
@@ -356,7 +363,12 @@ class SyncEngine {
   // ── Practice feature setters ────────────────────────────────────────────────
 
   setTranspose(semitones: number) {
-    this.transposeSemitones = Math.round(Math.max(-12, Math.min(12, semitones)));
+    const next = Math.round(Math.max(-12, Math.min(12, semitones)));
+    if (next === this.transposeSemitones) return;
+    this.transposeSemitones = next;
+    // Pending notes captured the old pitch (and wait mode's targets with them)
+    this.rescheduleIfActive();
+    this.emitState(this._state.status);
   }
 
   setCountInBars(n: 0 | 1 | 2) {

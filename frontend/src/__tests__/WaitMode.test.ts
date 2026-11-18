@@ -9,7 +9,8 @@ const transport = vi.hoisted(() => ({
   seconds: 0,
   bpm: { value: 120 },
   state: "started",
-  cancel: vi.fn(),
+  // Like Tone: cancel() drops every pending scheduled event
+  cancel: vi.fn(() => sched.items.forEach((s) => (s.fired = true))),
   start: vi.fn(),
   pause: vi.fn(),
   stop: vi.fn(),
@@ -218,6 +219,19 @@ describe("scheduled playback audio", () => {
     eng.onTick(0);
     runUntil(0);
     expect(audio.playNote.mock.calls.map((c) => (c[0] as NoteEvent).id)).toEqual(["r"]);
+  });
+
+  it("a transpose change during playback applies to notes already scheduled", async () => {
+    await setup([note("a", 60, 0), note("b", 62, 2)], false);
+    eng.onTick(0); // both notes scheduled (within the 5 s lookahead)
+    runUntil(0); // "a" sounds
+    eng.onTick(1); // playback has moved on to 1 s
+    syncEngine.setTranspose(3); // user transposes mid-playback
+    eng.onTick(1); // next clock tick reschedules from 1 s
+    runUntil(10);
+    const pitches = audio.playNote.mock.calls.map((c) => (c[0] as NoteEvent).midi);
+    // "a" already sounded at the old pitch; "b" must use the new one
+    expect(pitches).toEqual([60, 65]);
   });
 
   it("releasing a note doesn't cut off an overlapping note of the same pitch", async () => {
