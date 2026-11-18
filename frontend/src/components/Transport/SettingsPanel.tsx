@@ -1423,6 +1423,17 @@ export function SettingsPanel({ open, onClose }: { open: boolean; onClose: () =>
             </Row>
 
             <Row
+              label="Require held notes"
+              sublabel="wait mode also pauses if you let go too early"
+              title="When Wait mode is active, notes that should still be sounding must stay held (or sustained with the pedal). Let one go early and playback pauses at the next note until you press it again."
+            >
+              <Toggle
+                active={settings.waitRequireHeld}
+                onClick={() => updateSettings({ waitRequireHeld: !settings.waitRequireHeld })}
+              />
+            </Row>
+
+            <Row
               label="Hand volumes"
               sublabel="balance each hand independently"
               title="Reduce a hand's volume without muting it - useful when drilling the other hand"

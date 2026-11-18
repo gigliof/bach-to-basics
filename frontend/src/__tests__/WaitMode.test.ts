@@ -114,6 +114,8 @@ describe("wait mode", () => {
     syncEngine.setWaitForHand("both");
     syncEngine.setActiveHands(new Set(["left", "right"]));
     syncEngine.setHandVolume({ left: 1, right: 1 });
+    syncEngine.setRequireHeldNotes(false);
+    syncEngine.resetLiveInput();
     Object.values(audio).forEach((fn) => fn.mockClear?.());
   });
 
@@ -201,6 +203,93 @@ describe("wait mode", () => {
     runUntil(0);
     expect(syncEngine.state.status).toBe("waiting");
     syncEngine.setWaitMode(false);
+    expect(syncEngine.state.status).toBe("playing");
+  });
+});
+
+describe("wait mode: require held notes", () => {
+  beforeEach(() => {
+    sched.items.length = 0;
+    syncEngine.setTranspose(0);
+    syncEngine.setWaitForHand("both");
+    syncEngine.setActiveHands(new Set(["left", "right"]));
+    syncEngine.resetLiveInput();
+    syncEngine.setRequireHeldNotes(true);
+  });
+
+  // Left-hand chord held for 2 s while the right hand plays at 0 and 1 s
+  const piece = () => [
+    note("c", 48, 0, "left", 2),
+    note("e", 52, 0, "left", 2),
+    note("r1", 72, 0, "right", 0.5),
+    note("r2", 74, 1, "right", 0.5),
+  ];
+
+  async function playFirstBeat() {
+    await setup(piece());
+    eng.onTick(0);
+    runUntil(0);
+    [48, 52, 72].forEach((m) => syncEngine.onMidiInput(m, 80));
+    expect(syncEngine.state.status).toBe("playing");
+  }
+
+  it("continues when the chord is still held at the next note", async () => {
+    await playFirstBeat();
+    syncEngine.onMidiInputOff(72);
+    runUntil(1);
+    syncEngine.onMidiInput(74, 80);
+    expect(syncEngine.state.status).toBe("playing");
+  });
+
+  it("pauses until a chord note released early is pressed again", async () => {
+    await playFirstBeat();
+    syncEngine.onMidiInputOff(48); // let go of the low C too early
+    runUntil(1);
+    syncEngine.onMidiInput(74, 80);
+    expect(syncEngine.state.status).toBe("waiting");
+    syncEngine.onMidiInput(48, 80);
+    expect(syncEngine.state.status).toBe("playing");
+  });
+
+  it("counts a note sustained by the pedal as held", async () => {
+    await playFirstBeat();
+    syncEngine.onSustainInput(true);
+    syncEngine.onMidiInputOff(48);
+    syncEngine.onMidiInputOff(52);
+    runUntil(1);
+    syncEngine.onMidiInput(74, 80);
+    expect(syncEngine.state.status).toBe("playing");
+  });
+
+  it("doesn't ask to hold a note that is about to end", async () => {
+    // r2 starts at 0.85, 0.15 s before r1 ends: letting go of r1 is normal phrasing
+    await setup([note("r1", 72, 0, "right", 1), note("r2", 74, 0.85, "right", 0.5)]);
+    eng.onTick(0);
+    runUntil(0);
+    syncEngine.onMidiInput(72, 80);
+    syncEngine.onMidiInputOff(72);
+    runUntil(0.85);
+    syncEngine.onMidiInput(74, 80);
+    expect(syncEngine.state.status).toBe("playing");
+  });
+
+  it("ignores the other hand's notes when waiting for one hand", async () => {
+    await setup(piece());
+    syncEngine.setWaitForHand("right");
+    eng.onTick(0);
+    runUntil(0);
+    syncEngine.onMidiInput(72, 80);
+    runUntil(1); // left chord is the app's part: nobody is holding it
+    syncEngine.onMidiInput(74, 80);
+    expect(syncEngine.state.status).toBe("playing");
+  });
+
+  it("is off by default: releasing early doesn't pause", async () => {
+    syncEngine.setRequireHeldNotes(false);
+    await playFirstBeat();
+    syncEngine.onMidiInputOff(48);
+    runUntil(1);
+    syncEngine.onMidiInput(74, 80);
     expect(syncEngine.state.status).toBe("playing");
   });
 });

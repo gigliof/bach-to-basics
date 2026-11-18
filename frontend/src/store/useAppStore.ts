@@ -101,6 +101,8 @@ export interface AppSettings {
   instrument: InstrumentId;
   /** Which hand(s) trigger wait-mode pauses ("both" = default, all hands) */
   waitForHand: "left" | "right" | "both";
+  /** Wait mode also pauses when a note that should still sound was let go early */
+  waitRequireHeld: boolean;
   /** Draw a colored outline stroke around falling note bars */
   showNoteOutline: boolean;
   // ── MIDIano live-app additions ────────────────────────────────────────────
@@ -234,6 +236,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // ── "Consider later" additions ────────────────────────────────────────────
   instrument: "grand" as InstrumentId,
   waitForHand: "both" as "left" | "right" | "both",
+  waitRequireHeld: false,
   showNoteOutline: false,
   // ── MIDIano live-app additions ────────────────────────────────────────────
   renderOffset: 0,
@@ -749,6 +752,8 @@ export const useAppStore = create<AppState>((set, get) => {
         syncEngine.setInstrument(patch.instrument).catch(console.warn);
       if ("waitForHand" in patch && patch.waitForHand !== undefined)
         syncEngine.setWaitForHand(patch.waitForHand);
+      if ("waitRequireHeld" in patch && patch.waitRequireHeld !== undefined)
+        syncEngine.setRequireHeldNotes(patch.waitRequireHeld);
       if ("renderOffset" in patch && patch.renderOffset !== undefined)
         syncEngine.setRenderOffset(patch.renderOffset);
 
@@ -773,6 +778,7 @@ export const useAppStore = create<AppState>((set, get) => {
       syncEngine.setActiveHands(DEFAULT_SETTINGS.activeHands);
       syncEngine.setHandVolume(DEFAULT_SETTINGS.handVolume);
       syncEngine.setWaitForHand(DEFAULT_SETTINGS.waitForHand);
+      syncEngine.setRequireHeldNotes(DEFAULT_SETTINGS.waitRequireHeld);
       syncEngine.setInstrument(DEFAULT_SETTINGS.instrument).catch(console.warn);
       syncEngine.setRenderOffset(DEFAULT_SETTINGS.renderOffset);
     },

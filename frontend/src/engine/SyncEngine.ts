@@ -23,6 +23,10 @@ const LOOKAHEAD_DOC_SECONDS = 5.0;
 // Wait mode: a key pressed up to this long (wall-clock) before the pause point
 // still satisfies the target, so playing slightly ahead of the beat doesn't stall.
 const WAIT_EARLY_HIT_MS = 150;
+// "Require held notes": letting go this close to a note's written end is normal
+// phrasing, not an early release. The larger of the two applies.
+const HOLD_TOLERANCE_SECONDS = 0.15;
+const HOLD_TOLERANCE_FRACTION = 0.25;
 const YT_DRIFT_THRESHOLD = 0.25;
 
 export interface SyncEngineState {
@@ -37,6 +41,8 @@ export interface SyncEngineState {
   handVolume: { left: number; right: number };
   /** Which hand(s) trigger wait-mode pauses. Only relevant when waitMode is on. */
   waitForHand: "left" | "right" | "both";
+  /** Wait mode also pauses when a note that should still sound was released early. */
+  requireHeldNotes: boolean;
 }
 
 class SyncEngine {
@@ -58,6 +64,7 @@ class SyncEngine {
     metronomeEnabled: false,
     handVolume: { left: 1, right: 1 },
     waitForHand: "both",
+    requireHeldNotes: false,
   };
 
   private ytPlayer: YTPlayer | null = null;
@@ -81,6 +88,12 @@ class SyncEngine {
   // Wall-clock time (performance.now) of each pitch's latest key press, so a
   // note played slightly before the pause point still counts.
   private recentInputs = new Map<number, number>();
+  // Live input: keys physically down, and the player's sustain pedal (CC64).
+  private heldKeys = new Set<number>();
+  private sustainDown = false;
+  // "Require held notes": target notes already reached that are still sounding
+  // in the score, keyed by note id. Checked at every later wait point.
+  private pendingHolds = new Map<string, { note: NoteEvent; midi: number }>();
 
   // ── Practice features ───────────────────────────────────────────────────────
   private renderOffsetMs = 0;
@@ -233,6 +246,7 @@ class SyncEngine {
     this.activeNotes.clear();
     this.waitingMidis.clear();
     this.recentInputs.clear();
+    this.pendingHolds.clear();
     this._state.currentSeconds = 0;
     this.lastBeatCrossed = -1;
     this.emitState("stopped");
@@ -348,6 +362,12 @@ class SyncEngine {
     };
   }
 
+  setRequireHeldNotes(on: boolean) {
+    this._state.requireHeldNotes = on;
+    if (!on) this.pendingHolds.clear();
+    this.emitState(this._state.status);
+  }
+
   setWaitForHand(hand: "left" | "right" | "both") {
     this._state.waitForHand = hand;
   }
@@ -389,6 +409,7 @@ class SyncEngine {
   onMidiInput(midi: number, velocity: number) {
     bus.emit("input:note:on", { midi, velocity });
     this.recentInputs.set(midi, performance.now());
+    this.heldKeys.add(midi);
 
     if (this._state.status === "waiting" && this.waitingMidis.delete(midi)) {
       // Resume only once every pitch of the target chord has been played.
@@ -421,7 +442,19 @@ class SyncEngine {
   }
 
   onMidiInputOff(midi: number) {
+    this.heldKeys.delete(midi);
     bus.emit("input:note:off", { midi });
+  }
+
+  /** Player's sustain pedal (MIDI CC64). A sustained note counts as held. */
+  onSustainInput(down: boolean) {
+    this.sustainDown = down;
+  }
+
+  /** Forget live key/pedal state (device switched or unplugged mid-note). */
+  resetLiveInput() {
+    this.heldKeys.clear();
+    this.sustainDown = false;
   }
 
   onStateChange(cb: (s: SyncEngineState) => void) {
@@ -445,6 +478,7 @@ class SyncEngine {
     // Pending wait targets and early hits belong to the old position.
     this.waitingMidis.clear();
     this.recentInputs.clear();
+    this.pendingHolds.clear();
     this.noteIndex = this.doc.notes.findIndex((n) => n.startSeconds >= seconds);
     if (this.noteIndex === -1) this.noteIndex = this.doc.notes.length;
     this.activeNotes.clear();
@@ -467,14 +501,31 @@ class SyncEngine {
   /**
    * Fires at a note group's real onset (all notes sharing one startSeconds).
    * Pauses until the player has hit every target pitch, minus any they hit
-   * within WAIT_EARLY_HIT_MS just before this moment.
+   * within WAIT_EARLY_HIT_MS just before this moment. With "Require held
+   * notes", earlier target notes that should still be sounding must also be
+   * held (or sustained by the pedal); any that were let go are re-requested.
    */
   private onWaitCheck(group: { note: NoteEvent; tNote: NoteEvent }[]) {
     if (!this._state.waitMode || this._state.status !== "playing") return;
     const now = performance.now();
     const targets = new Set<number>();
+    if (this._state.requireHeldNotes && group.length > 0) {
+      const at = group[0].note.startSeconds;
+      for (const [id, h] of this.pendingHolds) {
+        const { startSeconds: start, endSeconds: end } = h.note;
+        const tolerance = Math.max(HOLD_TOLERANCE_SECONDS, (end - start) * HOLD_TOLERANCE_FRACTION);
+        // Drop notes that are (nearly) over, or no longer the player's part
+        // (hand or wait-hand setting changed since they started).
+        if (end - at <= tolerance || !this.isWaitTarget(h.note)) {
+          this.pendingHolds.delete(id);
+          continue;
+        }
+        if (!this.heldKeys.has(h.midi) && !this.sustainDown) targets.add(h.midi);
+      }
+    }
     for (const { note, tNote } of group) {
       if (!this.isWaitTarget(note)) continue;
+      if (this._state.requireHeldNotes) this.pendingHolds.set(note.id, { note, midi: tNote.midi });
       const hitAt = this.recentInputs.get(tNote.midi);
       if (hitAt !== undefined && now - hitAt <= WAIT_EARLY_HIT_MS) {
         this.recentInputs.delete(tNote.midi); // consume the early hit once

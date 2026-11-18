@@ -22,7 +22,10 @@ export function DevicePanel() {
           setInputs(WebMidi.inputs.map((i) => i.name));
           // Read the CURRENT device from the store: this effect runs once on mount,
           // so the `midiDeviceName` captured here would always be the initial null.
-          if (e.port.name === useAppStore.getState().midiDeviceName) setMidiDevice(null);
+          if (e.port.name === useAppStore.getState().midiDeviceName) {
+            syncEngine.resetLiveInput();
+            setMidiDevice(null);
+          }
         });
       })
       .catch((err: unknown) => {
@@ -66,10 +69,15 @@ export function DevicePanel() {
         WebMidi.getInputByName(midiDeviceName)?.removeListener();
       } catch {}
     }
+    syncEngine.resetLiveInput();
     const input = WebMidi.getInputByName(name);
     if (!input) return;
     input.addListener("noteon", (e) => syncEngine.onMidiInput(e.note.number, e.rawValue ?? 64));
     input.addListener("noteoff", (e) => syncEngine.onMidiInputOff(e.note.number));
+    // Sustain pedal (CC64): >= 64 is down, per the MIDI spec
+    input.addListener("controlchange-controller64", (e) =>
+      syncEngine.onSustainInput((e.rawValue ?? 0) >= 64)
+    );
     setMidiDevice(name);
     setOpen(false);
   };
@@ -80,6 +88,7 @@ export function DevicePanel() {
         WebMidi.getInputByName(midiDeviceName)?.removeListener();
       } catch {}
     }
+    syncEngine.resetLiveInput();
     setMidiDevice(null);
     setOpen(false);
   };
