@@ -6,6 +6,7 @@ is imported, so xml.etree (used by music21 internally) is already patched.
 """
 import asyncio
 import concurrent.futures
+import multiprocessing
 from concurrent.futures.process import BrokenProcessPool
 import html
 import logging
@@ -56,8 +57,11 @@ def _music21_worker_init() -> None:
 
 
 def _new_executor() -> concurrent.futures.ProcessPoolExecutor:
+    # "spawn" everywhere: Linux defaults to fork(), which copies the running
+    # (multi-threaded) server and can deadlock a worker. macOS already spawns.
     return concurrent.futures.ProcessPoolExecutor(
         max_workers=2,
+        mp_context=multiprocessing.get_context("spawn"),
         initializer=_music21_worker_init,
     )
 
