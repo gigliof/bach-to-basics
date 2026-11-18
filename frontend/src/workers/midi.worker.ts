@@ -2,8 +2,16 @@
 // Uses @tonejs/midi for parsing (synchronous, no nested worker issues).
 
 import { Midi } from "@tonejs/midi";
-import type { NoteEvent, TempoEvent, TimeSignatureEvent, MusicDocument, KeySignature, SustainRange } from "@bach-to-basics/shared";
+import type {
+  NoteEvent,
+  TempoEvent,
+  TimeSignatureEvent,
+  MusicDocument,
+  KeySignature,
+  SustainRange,
+} from "@bach-to-basics/shared";
 import { midiToPitch } from "@bach-to-basics/shared";
+import { assignHandsToTracks } from "../utils/handAssignment";
 
 self.onmessage = (e: MessageEvent<{ buffer: ArrayBuffer; id: string; title: string }>) => {
   const { buffer, id } = e.data;
@@ -40,7 +48,7 @@ self.onmessage = (e: MessageEvent<{ buffer: ArrayBuffer; id: string; title: stri
       const rawKey = String(first.key ?? "C");
       const safeKey = rawKey.replace(/[^A-Ga-g#b]/g, "").slice(0, 3) || "C";
       keySignature = {
-        key:   safeKey,
+        key: safeKey,
         scale: first.scale === "minor" ? "minor" : "major",
       };
     }
@@ -49,14 +57,12 @@ self.onmessage = (e: MessageEvent<{ buffer: ArrayBuffer; id: string; title: stri
     const notes: NoteEvent[] = [];
     let idCounter = 0;
 
+    // Hand per track, ignoring note-less tracks (e.g. a leading tempo track)
+    const trackHands = assignHandsToTracks(midi.tracks.map((t) => t.notes.map((n) => n.midi)));
+
     for (let trackIdx = 0; trackIdx < midi.tracks.length; trackIdx++) {
       const track = midi.tracks[trackIdx];
-
-      // Hand assignment by track: track 0 = right, track 1 = left (standard)
-      let hand: NoteEvent["hand"] = "unknown";
-      if (midi.tracks.length >= 2) {
-        hand = trackIdx === 0 ? "right" : "left";
-      }
+      const hand = trackHands[trackIdx];
 
       for (const note of track.notes) {
         notes.push({
@@ -65,7 +71,7 @@ self.onmessage = (e: MessageEvent<{ buffer: ArrayBuffer; id: string; title: stri
           pitch: midiToPitch(note.midi),
           startTick: note.ticks,
           durationTick: note.durationTicks,
-          startSeconds: note.time,         // @tonejs/midi computes this
+          startSeconds: note.time, // @tonejs/midi computes this
           endSeconds: note.time + note.duration,
           hand,
           finger: null,
@@ -77,9 +83,7 @@ self.onmessage = (e: MessageEvent<{ buffer: ArrayBuffer; id: string; title: stri
 
     notes.sort((a, b) => a.startSeconds - b.startSeconds);
 
-    const totalDuration = notes.length > 0
-      ? Math.max(...notes.map((n) => n.endSeconds))
-      : 0;
+    const totalDuration = notes.length > 0 ? Math.max(...notes.map((n) => n.endSeconds)) : 0;
 
     // ── Sustain pedal (CC64) to sustain ranges ───────────────────────────────
     // @tonejs/midi normalises CC values to 0-1; ≥0.5 means pedal is depressed.

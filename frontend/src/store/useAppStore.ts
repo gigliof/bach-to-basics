@@ -3,6 +3,7 @@ import { syncEngine } from "../engine/SyncEngine";
 import bus from "../engine/EventBus";
 import type { MusicDocument, PlaybackStatus, NoteEvent, Finger } from "@bach-to-basics/shared";
 import type { InstrumentId } from "../engine/AudioEngine";
+import { applyFingeringMarks, type FingeringMark } from "../utils/fingeringMarks";
 export { computeMeasureSeconds, keySignatureToLabel } from "@bach-to-basics/shared";
 export type { InstrumentId } from "../engine/AudioEngine";
 export { INSTRUMENT_LABELS } from "../engine/AudioEngine";
@@ -313,7 +314,7 @@ export const useAppStore = create<AppState>((set, get) => {
       try {
         const id = crypto.randomUUID();
         // M4 - strip path separators, control chars; cap length
-        const rawTitle = file.name.replace(/\.(xml|mxl)$/i, "");
+        const rawTitle = file.name.replace(/\.(xml|musicxml|mxl)$/i, "");
         const title = rawTitle.replace(/[\x00-\x1f\x7f/\\]/g, "").slice(0, 200) || "Untitled";
         const xmlBytes = await file.arrayBuffer();
 
@@ -887,8 +888,8 @@ function applyFingeringFromXml(notes: NoteEvent[], annotatedXml: string): NoteEv
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(annotatedXml, "application/xml");
 
-  // Collect finger numbers per hand, in document order
-  const fingersByHand: Record<"left" | "right", (Finger | null)[]> = { left: [], right: [] };
+  // Collect one mark per sounding note, in document order
+  const marks: FingeringMark[] = [];
 
   const parts = Array.from(xmlDoc.querySelectorAll("part"));
   for (const part of parts) {
@@ -915,6 +916,16 @@ function applyFingeringFromXml(notes: NoteEvent[], annotatedXml: string): NoteEv
     // Second pass: bucket fingerings into the correct hand
     for (const el of noteEls) {
       if (el.querySelector("rest")) continue;
+      // A tied continuation (e.g. a note crossing a barline) is a separate XML
+      // note but the SAME note in MIDI - counting it would shift every later finger.
+      if (el.querySelector('tie[type="stop"]')) continue;
+      const step = el.querySelector("pitch > step")?.textContent ?? "";
+      if (!step) continue; // unpitched
+      const midi = xmlStepToMidi(
+        step,
+        Number(el.querySelector("pitch > octave")?.textContent ?? 0),
+        Number(el.querySelector("pitch > alter")?.textContent ?? 0)
+      );
 
       // Determine hand: prefer <staff> (1 = right/treble, 2 = left/bass), else fallback
       let handKey: "left" | "right" = fallbackHand;
@@ -931,29 +942,11 @@ function applyFingeringFromXml(notes: NoteEvent[], annotatedXml: string): NoteEv
       const finger: Finger | null = /^[1-5]$/.test(normalized)
         ? (Number(normalized) as Finger)
         : null;
-      fingersByHand[handKey].push(finger);
+      marks.push({ hand: handKey, midi, finger });
     }
   }
 
-  // Collect per-hand NoteEvent indices (already sorted by startSeconds in the flat array)
-  const idxByHand: Record<"left" | "right" | "unknown", number[]> = {
-    left: [],
-    right: [],
-    unknown: [],
-  };
-  notes.forEach((note, idx) => idxByHand[note.hand].push(idx));
-
-  // Splice in fingerings by index
-  const updated = notes.map((n) => ({ ...n }));
-  for (const hand of ["left", "right"] as const) {
-    const eventIdxs = idxByHand[hand];
-    const fingers = fingersByHand[hand];
-    const count = Math.min(eventIdxs.length, fingers.length);
-    for (let i = 0; i < count; i++) {
-      updated[eventIdxs[i]] = { ...updated[eventIdxs[i]], finger: fingers[i] };
-    }
-  }
-  return updated;
+  return applyFingeringMarks(notes, marks);
 }
 
 async function fetchMidiFromXml(

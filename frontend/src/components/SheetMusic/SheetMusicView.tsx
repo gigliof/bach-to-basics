@@ -16,6 +16,15 @@ function sanitizeMusicXml(xml: string): string {
   return xml.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\bon\w+\s*=/gi, "data-removed=");
 }
 
+/** Load score data into alphaTab; report data it can't read instead of showing a blank sheet. */
+function loadScore(api: { load(data: Uint8Array): boolean }, data: Uint8Array) {
+  if (!api.load(data)) {
+    useAppStore.setState({
+      loadError: "Couldn't display the sheet music: the file isn't a format alphaTab can read.",
+    });
+  }
+}
+
 export function SheetMusicView() {
   const scrollRef = useRef<HTMLDivElement>(null); // outer overflow-auto container
   const containerRef = useRef<HTMLDivElement>(null); // inner AlphaTab host
@@ -89,8 +98,26 @@ export function SheetMusicView() {
 
       // ── Mark score as rendered so cursor/scroll can activate ─────────────
       try {
-        api.scoreLoaded.on(() => {
+        api.scoreLoaded.on((score) => {
           scoreLoaded.current = true;
+          // alphaTab renders only the first part by default, so a score that
+          // stores parts separately (e.g. voice + piano, or one part per hand)
+          // would show just one of them. Render every part. scoreLoaded fires
+          // again after renderTracks(); the length check stops it repeating.
+          if (score.tracks.length > 1 && api.tracks.length < score.tracks.length) {
+            api.renderTracks(score.tracks);
+          }
+        });
+      } catch {
+        /* ignore */
+      }
+
+      // ── Surface alphaTab failures instead of leaving a blank sheet ───────
+      try {
+        api.error.on((err: Error) => {
+          useAppStore.setState({
+            loadError: `Couldn't display the sheet music: ${err?.message || String(err)}`,
+          });
         });
       } catch {
         /* ignore */
@@ -99,10 +126,10 @@ export function SheetMusicView() {
       // ── Load score if MusicXML is already available ──────────────────────
       const initialDoc = useAppStore.getState().document;
       if (initialDoc?.musicXml) {
-        api.load(new TextEncoder().encode(sanitizeMusicXml(initialDoc.musicXml)));
+        loadScore(api, new TextEncoder().encode(sanitizeMusicXml(initialDoc.musicXml)));
       } else if (initialDoc?.mxlBuffer) {
         // .mxl is ZIP-compressed MusicXML; AlphaTab handles it natively
-        api.load(new Uint8Array(initialDoc.mxlBuffer));
+        loadScore(api, new Uint8Array(initialDoc.mxlBuffer));
       }
 
       // ── Click note to play sound ─────────────────────────────────────────
@@ -260,11 +287,11 @@ export function SheetMusicView() {
     }
     if (doc?.musicXml) {
       scoreLoaded.current = false;
-      apiRef.current.load(new TextEncoder().encode(sanitizeMusicXml(doc.musicXml)));
+      loadScore(apiRef.current, new TextEncoder().encode(sanitizeMusicXml(doc.musicXml)));
     } else if (doc?.mxlBuffer) {
       // .mxl is ZIP-compressed MusicXML; AlphaTab handles it natively
       scoreLoaded.current = false;
-      apiRef.current.load(new Uint8Array(doc.mxlBuffer));
+      loadScore(apiRef.current, new Uint8Array(doc.mxlBuffer));
     }
   }, [doc?.musicXml, doc?.mxlBuffer]);
 

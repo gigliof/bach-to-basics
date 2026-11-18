@@ -350,6 +350,7 @@ def _xml_to_midi(xml_bytes: bytes, filename: str) -> bytes:
             xml_path = f.name
 
         score = music21.converter.parse(xml_path)
+        _strip_chord_symbols(score)
 
         midi_tmp = tempfile.NamedTemporaryFile(suffix=".mid", delete=False)
         midi_tmp.close()
@@ -363,6 +364,23 @@ def _xml_to_midi(xml_bytes: bytes, filename: str) -> bytes:
             Path(xml_path).unlink(missing_ok=True)
         if midi_tmp_name:
             Path(midi_tmp_name).unlink(missing_ok=True)
+
+
+def _strip_chord_symbols(score) -> None:
+    """Remove chord-symbol labels (MusicXML <harmony>) before MIDI export.
+
+    music21 realizes ChordSymbol objects as sounding chords when writing MIDI,
+    so a lead-sheet label like "C" would add C-E-G notes nobody wrote - extra
+    falling notes, extra audio, and extra wait-mode targets. The written notes
+    (including real chords) are untouched; the labels still show on the sheet,
+    which alphaTab renders from the original MusicXML.
+    """
+    from music21 import harmony
+
+    for cs in list(score.recurse().getElementsByClass(harmony.ChordSymbol)):
+        site = cs.activeSite
+        if site is not None:
+            site.remove(cs)
 
 
 async def musicxml_to_pdf(musicxml: str) -> str:

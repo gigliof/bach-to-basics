@@ -88,7 +88,7 @@ export function TransportControls() {
 
   const openFile = (file: File) => {
     if (file.name.match(/\.midi?$/i)) loadMidiFile(file);
-    else if (file.name.match(/\.(xml|mxl)$/i)) loadMusicXmlFile(file);
+    else if (file.name.match(/\.(xml|musicxml|mxl)$/i)) loadMusicXmlFile(file);
     else if (file.name.match(/\.pdf$/i)) loadPdfFile(file);
     else if (file.name.match(/\.(mp3|wav|m4a|ogg|flac|aac)$/i)) loadAudioFile(file);
   };
@@ -247,7 +247,7 @@ export function TransportControls() {
           )}
           <input
             type="file"
-            accept=".mid,.midi,.xml,.mxl,.pdf,.mp3,.wav,.m4a,.ogg,.flac,.aac"
+            accept=".mid,.midi,.xml,.musicxml,.mxl,.pdf,.mp3,.wav,.m4a,.ogg,.flac,.aac"
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
