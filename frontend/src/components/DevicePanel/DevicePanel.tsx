@@ -20,7 +20,9 @@ export function DevicePanel() {
         WebMidi.addListener("connected", () => setInputs(WebMidi.inputs.map((i) => i.name)));
         WebMidi.addListener("disconnected", (e) => {
           setInputs(WebMidi.inputs.map((i) => i.name));
-          if (e.port.name === midiDeviceName) setMidiDevice(null);
+          // Read the CURRENT device from the store: this effect runs once on mount,
+          // so the `midiDeviceName` captured here would always be the initial null.
+          if (e.port.name === useAppStore.getState().midiDeviceName) setMidiDevice(null);
         });
       })
       .catch((err: unknown) => {
@@ -34,8 +36,12 @@ export function DevicePanel() {
       });
 
     return () => {
-      try { WebMidi.removeListener("connected"); } catch {}
-      try { WebMidi.removeListener("disconnected"); } catch {}
+      try {
+        WebMidi.removeListener("connected");
+      } catch {}
+      try {
+        WebMidi.removeListener("disconnected");
+      } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -47,7 +53,8 @@ export function DevicePanel() {
       if (
         !chipRef.current?.contains(e.target as Node) &&
         !popoverRef.current?.contains(e.target as Node)
-      ) setOpen(false);
+      )
+        setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -55,7 +62,9 @@ export function DevicePanel() {
 
   const connectDevice = (name: string) => {
     if (midiDeviceName) {
-      try { WebMidi.getInputByName(midiDeviceName)?.removeListener(); } catch {}
+      try {
+        WebMidi.getInputByName(midiDeviceName)?.removeListener();
+      } catch {}
     }
     const input = WebMidi.getInputByName(name);
     if (!input) return;
@@ -67,7 +76,9 @@ export function DevicePanel() {
 
   const disconnect = () => {
     if (midiDeviceName) {
-      try { WebMidi.getInputByName(midiDeviceName)?.removeListener(); } catch {}
+      try {
+        WebMidi.getInputByName(midiDeviceName)?.removeListener();
+      } catch {}
     }
     setMidiDevice(null);
     setOpen(false);
@@ -79,7 +90,11 @@ export function DevicePanel() {
       <div
         className="text-xs px-2 py-1 rounded cursor-help shrink-0"
         title={errorMsg ?? "MIDI error"}
-        style={{ color: "var(--color-warning)", background: "var(--color-warning-subtle)", border: "1px solid var(--color-warning-border)" }}
+        style={{
+          color: "var(--color-warning)",
+          background: "var(--color-warning-subtle)",
+          border: "1px solid var(--color-warning-border)",
+        }}
       >
         ⚠ MIDI
       </div>
@@ -101,7 +116,9 @@ export function DevicePanel() {
         className="flex items-center gap-2 text-xs font-semibold transition-colors shrink-0"
         style={{
           background: connected ? "rgba(34,197,94,0.08)" : "var(--color-warning-subtle)",
-          border: connected ? "1px solid rgba(34,197,94,0.5)" : "1px solid var(--color-warning-border)",
+          border: connected
+            ? "1px solid rgba(34,197,94,0.5)"
+            : "1px solid var(--color-warning-border)",
           color: connected ? "#4ade80" : "var(--color-warning)",
           cursor: "pointer",
           maxWidth: 200,
@@ -118,14 +135,17 @@ export function DevicePanel() {
         ) : (
           <span style={{ fontSize: 11, lineHeight: 1, flexShrink: 0 }}>⚠</span>
         )}
-        <span
-          className="truncate"
-          style={{ maxWidth: 130 }}
-        >
+        <span className="truncate" style={{ maxWidth: 130 }}>
           {connected ? midiDeviceName : "No MIDI device"}
         </span>
-        <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0 }}>
-          <path d="M7 10l5 5 5-5z"/>
+        <svg
+          width="8"
+          height="8"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          style={{ opacity: 0.5, flexShrink: 0 }}
+        >
+          <path d="M7 10l5 5 5-5z" />
         </svg>
       </button>
 
@@ -148,7 +168,10 @@ export function DevicePanel() {
         >
           <div
             className="px-3 py-2 text-xs font-semibold uppercase tracking-wide"
-            style={{ color: "var(--color-text-muted)", borderBottom: "1px solid var(--color-border)" }}
+            style={{
+              color: "var(--color-text-muted)",
+              borderBottom: "1px solid var(--color-border)",
+            }}
           >
             MIDI Input
           </div>
@@ -179,7 +202,9 @@ export function DevicePanel() {
                       />
                       <span className="truncate">{name}</span>
                       {isActive && (
-                        <span className="ml-auto text-xs" style={{ color: "#4ade80" }}>✓</span>
+                        <span className="ml-auto text-xs" style={{ color: "#4ade80" }}>
+                          ✓
+                        </span>
                       )}
                     </button>
                   </li>
@@ -193,7 +218,12 @@ export function DevicePanel() {
               <button
                 onClick={disconnect}
                 className="w-full text-left px-3 py-2 text-xs transition-colors"
-                style={{ background: "transparent", color: "#f87171", border: "none", cursor: "pointer" }}
+                style={{
+                  background: "transparent",
+                  color: "#f87171",
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
                 Disconnect
               </button>

@@ -146,7 +146,16 @@ export class AudioEngine {
     // Resume in case the AudioContext was created before a user gesture (browser
     // autoplay policy starts it suspended). Fire-and-forget, resolves quickly.
     this.ctx?.resume();
-    this.player.start({ note: note.midi, velocity: note.velocity, stopId: note.midi });
+    // stopId = the note's own id (not its pitch) so releasing this note can't
+    // cut off another, overlapping note of the same pitch (e.g. both hands on
+    // one key, or legato repeats in audio transcriptions).
+    this.player.start({ note: note.midi, velocity: note.velocity, stopId: note.id });
+  }
+
+  /** Release one scheduled note started by playNote(). */
+  stopScheduledNote(note: NoteEvent) {
+    if (!this.player || !this._loaded) return;
+    this.player.stop({ stopId: note.id });
   }
 
   /** Play a single MIDI note by number - for virtual keyboard clicks. */
