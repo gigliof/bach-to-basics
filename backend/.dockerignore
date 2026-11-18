@@ -6,3 +6,6 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 bin/*.jar
+tests/
+requirements-dev.txt
+pytest.ini

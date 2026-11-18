@@ -41,3 +41,39 @@ jobs:
       # while lint, types and tests stayed green).
       - name: Build
         run: pnpm --filter frontend build
+
+  backend:
+    name: Backend - test
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Same Python as backend/Dockerfile
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Test
+        run: python -m pytest -v
+
+  docker:
+    name: Docker - build images
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Builds both images exactly as `docker compose up` would; nothing is pushed
+      - name: Build
+        run: docker compose build

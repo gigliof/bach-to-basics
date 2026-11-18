@@ -6,6 +6,7 @@ is imported, so xml.etree (used by music21 internally) is already patched.
 """
 import asyncio
 import concurrent.futures
+from concurrent.futures.process import BrokenProcessPool
 import html
 import logging
 import os
@@ -54,18 +55,40 @@ def _music21_worker_init() -> None:
         pass  # lxml not installed, nothing to patch
 
 
-_music21_executor = concurrent.futures.ProcessPoolExecutor(
-    max_workers=2,
-    initializer=_music21_worker_init,
-)
+def _new_executor() -> concurrent.futures.ProcessPoolExecutor:
+    return concurrent.futures.ProcessPoolExecutor(
+        max_workers=2,
+        initializer=_music21_worker_init,
+    )
+
+
+_music21_executor = _new_executor()
 _MUSIC21_TIMEOUT = int(os.environ.get("MUSIC21_TIMEOUT_S", "60"))
+
+
+def _call_in_worker(fn: Callable, *args) -> object:
+    """Run fn in the worker, re-raising any failure as a plain RuntimeError.
+
+    Exceptions travel back to the parent pickled. Some can't be unpickled -
+    defusedxml's EntitiesForbidden (raised for an XXE upload) has required
+    constructor args - and a failed unpickle kills the pool's manager thread,
+    breaking EVERY later conversion until the server restarts. A RuntimeError
+    with a message always round-trips.
+    """
+    try:
+        return fn(*args)
+    except Exception as e:
+        raise RuntimeError(f"{type(e).__name__}: {e}") from None
 
 
 async def _run_in_music21_pool(fn: Callable, *args) -> object:
     """Run a blocking music21 function in the dedicated pool with a hard timeout."""
+    global _music21_executor
     try:
         return await asyncio.wait_for(
-            asyncio.get_running_loop().run_in_executor(_music21_executor, fn, *args),
+            asyncio.get_running_loop().run_in_executor(
+                _music21_executor, _call_in_worker, fn, *args
+            ),
             timeout=_MUSIC21_TIMEOUT,
         )
     except asyncio.TimeoutError:
@@ -73,6 +96,13 @@ async def _run_in_music21_pool(fn: Callable, *args) -> object:
             "Processing timed out, the score may be too complex. "
             "Try a simpler file or increase MUSIC21_TIMEOUT_S."
         )
+    except BrokenProcessPool:
+        # A worker died (crash, OOM kill). Replace the pool so the next
+        # request works instead of failing until a restart.
+        logger.error("music21 process pool broke; starting a new one")
+        broken, _music21_executor = _music21_executor, _new_executor()
+        broken.shutdown(wait=False, cancel_futures=True)
+        raise RuntimeError("Processing failed, please try again.")
 
 
 async def midi_bytes_to_musicxml(midi_bytes: bytes, title: str = "") -> str:

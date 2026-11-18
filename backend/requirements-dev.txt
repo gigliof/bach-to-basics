@@ -1,0 +1,4 @@
+# Test-only dependencies (CI and local). The app itself doesn't need these.
+-r requirements.txt
+pytest>=8.0
+httpx>=0.27   # required by FastAPI's TestClient
