@@ -45,7 +45,6 @@ desktop.ini
 *.code-workspace
 
 # ── AI / coding-assistant artifacts (local only) ─────────────────────────────
-.claude/
 .cursor/
 .cursorrules
 .cursorignore
