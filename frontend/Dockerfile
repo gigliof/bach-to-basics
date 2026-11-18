@@ -2,9 +2,13 @@
 # Multi-stage build: pnpm build, static files served by nginx with /api proxy
 
 # ── Stage 1: build ──────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+# Node 24 = active LTS (matches CI). Node 20 reached end-of-life in April 2026.
+FROM node:24-alpine AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Corepack installs the exact pnpm version pinned in package.json's
+# "packageManager" field (never "latest", which could break the lockfile).
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
 
 WORKDIR /app
 
@@ -18,7 +22,8 @@ RUN pnpm install --frozen-lockfile --filter ./frontend...
 RUN pnpm --filter frontend build
 
 # ── Stage 2: serve ──────────────────────────────────────────────────────────
-FROM nginx:1.27-alpine
+# nginx stable branch (1.27 stopped receiving image updates in April 2025).
+FROM nginx:1.30-alpine
 
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
