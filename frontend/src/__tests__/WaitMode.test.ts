@@ -341,6 +341,18 @@ describe("test mode", () => {
     expect(syncEngine.state.status).toBe("stopped");
   });
 
+  it("announces sustain pedal changes once each, and releases it on device reset", () => {
+    const events: boolean[] = [];
+    const onSustain = ({ down }: { down: boolean }) => events.push(down);
+    bus.on("input:sustain", onSustain);
+    syncEngine.onSustainInput(true);
+    syncEngine.onSustainInput(true); // repeated CC64 value: no new event
+    syncEngine.resetLiveInput();
+    syncEngine.resetLiveInput();
+    bus.off("input:sustain", onSustain);
+    expect(events).toEqual([true, false]);
+  });
+
   it("stopping ends the test", async () => {
     await setup([note("r", 72, 0, "right")], false);
     syncEngine.beginTest(new Set(["right"]), 10);

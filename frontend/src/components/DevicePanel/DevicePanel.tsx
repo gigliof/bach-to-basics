@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { WebMidi } from "webmidi";
 import { syncEngine } from "../../engine/SyncEngine";
 import { useAppStore } from "../../store/useAppStore";
+import bus from "../../engine/EventBus";
 
 export function DevicePanel() {
   const [inputs, setInputs] = useState<string[]>([]);
@@ -116,7 +117,8 @@ export function DevicePanel() {
   const connected = !!midiDeviceName;
 
   return (
-    <div className="relative shrink-0">
+    <div className="relative shrink-0 flex items-center gap-2">
+      {connected && <PedalIndicator />}
       {/* Chip button */}
       <button
         ref={chipRef}
@@ -241,5 +243,36 @@ export function DevicePanel() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Lights up while the player's sustain pedal is down. */
+function PedalIndicator() {
+  const [down, setDown] = useState(false);
+  useEffect(() => {
+    const onSustain = ({ down }: { down: boolean }) => setDown(down);
+    bus.on("input:sustain", onSustain);
+    return () => bus.off("input:sustain", onSustain);
+  }, []);
+  return (
+    <span
+      role="status"
+      aria-label={down ? "Sustain pedal down" : "Sustain pedal up"}
+      title="Sustain pedal on your MIDI keyboard"
+      className="text-xs font-semibold shrink-0 transition-colors"
+      style={{
+        padding: "4px 9px",
+        borderRadius: 999,
+        fontSize: 11,
+        border: down
+          ? "1px solid var(--color-accent-subtle-border)"
+          : "1px solid var(--color-border)",
+        background: down ? "var(--color-accent-subtle)" : "transparent",
+        color: down ? "var(--color-accent-text)" : "var(--color-text-muted)",
+        opacity: down ? 1 : 0.6,
+      }}
+    >
+      Pedal
+    </span>
   );
 }

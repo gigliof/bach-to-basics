@@ -84,6 +84,9 @@ export interface SyncEventMap {
    */
   "accuracy:update": { correct: number; wrong: number; missed: number; score: number };
 
+  /** The player's sustain pedal (CC64) went down or up. */
+  "input:sustain": { down: boolean };
+
   /** Test Mode: playback reached the end of the tested section. */
   "test:finished": Record<string, never>;
 }

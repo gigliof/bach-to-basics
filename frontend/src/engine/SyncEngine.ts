@@ -466,13 +466,15 @@ class SyncEngine {
 
   /** Player's sustain pedal (MIDI CC64). A sustained note counts as held. */
   onSustainInput(down: boolean) {
+    if (down === this.sustainDown) return;
     this.sustainDown = down;
+    bus.emit("input:sustain", { down });
   }
 
   /** Forget live key/pedal state (device switched or unplugged mid-note). */
   resetLiveInput() {
     this.heldKeys.clear();
-    this.sustainDown = false;
+    this.onSustainInput(false);
   }
 
   onStateChange(cb: (s: SyncEngineState) => void) {
