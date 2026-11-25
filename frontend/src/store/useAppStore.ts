@@ -13,6 +13,12 @@ import {
 } from "./persistence";
 import { startTestRun } from "../engine/TestRun";
 import type { TestHand, TestResult, TestTotals } from "../engine/TestScorer";
+import {
+  bestScoreKey,
+  recordTestResult,
+  songFingerprint,
+  type BestScore,
+} from "../utils/bestScores";
 export { computeMeasureSeconds, keySignatureToLabel } from "@bach-to-basics/shared";
 export type { InstrumentId } from "../engine/AudioEngine";
 export { INSTRUMENT_LABELS } from "../engine/AudioEngine";
@@ -131,6 +137,9 @@ export type TestState =
       result: TestResult;
       tempoPct: number;
       section: "piece" | "loop";
+      /** Best score for this song, hands and section before this run (null: first run) */
+      previousBest: BestScore | null;
+      isNewBest: boolean;
     };
 
 export interface AppState {
@@ -869,13 +878,25 @@ export const useAppStore = create<AppState>((set, get) => {
         },
         onFinish: (result) => {
           restore();
+          const tempoPct = Math.round(tempoMultiplier * 100);
+          const key = bestScoreKey(
+            songFingerprint(doc.notes),
+            hands,
+            isLoop ? { from: loopStart, to: loopEnd } : null
+          );
+          const { previousBest, isNewBest } = recordTestResult(key, {
+            score: result.score,
+            tempoPct,
+          });
           set({
             testState: {
               phase: "results",
               hands,
               result,
-              tempoPct: Math.round(tempoMultiplier * 100),
+              tempoPct,
               section: isLoop ? "loop" : "piece",
+              previousBest,
+              isNewBest,
             },
           });
         },

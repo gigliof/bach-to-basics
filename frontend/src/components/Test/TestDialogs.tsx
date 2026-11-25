@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../../store/useAppStore";
 import type { TestHand } from "../../engine/TestScorer";
+import type { BestScore } from "../../utils/bestScores";
 
 type HandChoice = "left" | "both" | "right";
 const handsFor = (c: HandChoice): TestHand[] => (c === "both" ? ["left", "right"] : [c]);
@@ -98,7 +99,7 @@ function TestResults() {
   const testState = useAppStore((s) => s.testState);
   const { startTest, closeTest } = useAppStore();
   if (testState?.phase !== "results") return null;
-  const { result, hands, tempoPct, section } = testState;
+  const { result, hands, tempoPct, section, previousBest, isNewBest } = testState;
   const handLabel =
     hands.length === 2 ? "Both hands" : `${hands[0] === "left" ? "Left" : "Right"} hand`;
 
@@ -117,6 +118,7 @@ function TestResults() {
           {result.score}%
         </div>
         <div style={{ fontWeight: 600 }}>{verdict(result.score)}</div>
+        <BestLine previousBest={previousBest} isNewBest={isNewBest} tempoPct={tempoPct} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -148,6 +150,34 @@ function TestResults() {
         </DialogButton>
       </Buttons>
     </Dialog>
+  );
+}
+
+/** "New best!" / "Your best: 82%" under the score (nothing on a first run). */
+function BestLine({
+  previousBest,
+  isNewBest,
+  tempoPct,
+}: {
+  previousBest: BestScore | null;
+  isNewBest: boolean;
+  tempoPct: number;
+}) {
+  if (!previousBest) return null;
+  const atTempo = (pct: number) => (pct === tempoPct ? "" : ` at ${pct}% tempo`);
+  return (
+    <div
+      style={{
+        marginTop: 4,
+        fontSize: 12,
+        color: isNewBest ? "#22c55e" : "var(--color-text-muted)",
+        fontWeight: isNewBest ? 600 : 400,
+      }}
+    >
+      {isNewBest
+        ? `New best! (previous: ${previousBest.score}%${atTempo(previousBest.tempoPct)})`
+        : `Your best: ${previousBest.score}%${atTempo(previousBest.tempoPct)}`}
+    </div>
   );
 }
 
