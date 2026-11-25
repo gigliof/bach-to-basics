@@ -353,6 +353,19 @@ describe("test mode", () => {
     expect(events).toEqual([true, false]);
   });
 
+  it("reads the sustain pedal from control change 64 only", () => {
+    const events: boolean[] = [];
+    const onSustain = ({ down }: { down: boolean }) => events.push(down);
+    bus.on("input:sustain", onSustain);
+    syncEngine.onControlChange(67, 127); // soft pedal: ignored
+    syncEngine.onControlChange(66, 127); // sostenuto: ignored
+    syncEngine.onControlChange(64, 127); // sustain down
+    syncEngine.onControlChange(64, 90); // half-pedal values above 63 still "down"
+    syncEngine.onControlChange(64, 0); // up
+    bus.off("input:sustain", onSustain);
+    expect(events).toEqual([true, false]);
+  });
+
   it("stopping ends the test", async () => {
     await setup([note("r", 72, 0, "right")], false);
     syncEngine.beginTest(new Set(["right"]), 10);

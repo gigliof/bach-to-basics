@@ -464,6 +464,12 @@ class SyncEngine {
     bus.emit("input:note:off", { midi });
   }
 
+  /** A MIDI control change from the player's keyboard (pedals, knobs). */
+  onControlChange(controller: number, value: number) {
+    // Sustain (damper) pedal is CC64; per the MIDI spec >= 64 means down
+    if (controller === 64) this.onSustainInput(value >= 64);
+  }
+
   /** Player's sustain pedal (MIDI CC64). A sustained note counts as held. */
   onSustainInput(down: boolean) {
     if (down === this.sustainDown) return;

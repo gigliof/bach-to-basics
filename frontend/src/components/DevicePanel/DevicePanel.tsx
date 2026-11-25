@@ -75,9 +75,12 @@ export function DevicePanel() {
     if (!input) return;
     input.addListener("noteon", (e) => syncEngine.onMidiInput(e.note.number, e.rawValue ?? 64));
     input.addListener("noteoff", (e) => syncEngine.onMidiInputOff(e.note.number));
-    // Sustain pedal (CC64): >= 64 is down, per the MIDI spec
-    input.addListener("controlchange-controller64", (e) =>
-      syncEngine.onSustainInput((e.rawValue ?? 0) >= 64)
+    // Pedals arrive as control changes. Listen to the generic event: WebMidi.js
+    // only forwards a fixed list of channel events from an Input, and the
+    // per-controller ones (e.g. "controlchange-controller64") aren't on it, so a
+    // listener for those is attached to the Input and never fires.
+    input.addListener("controlchange", (e) =>
+      syncEngine.onControlChange(e.controller.number, e.rawValue ?? 0)
     );
     setMidiDevice(name);
     setOpen(false);
