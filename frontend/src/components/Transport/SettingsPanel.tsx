@@ -1074,6 +1074,35 @@ export function SettingsPanel({ open, onClose }: { open: boolean; onClose: () =>
               />
             </Row>
 
+            {/* ── Sheet music sub-group ────────────────────────────────────── */}
+            <SubHeader>Sheet music</SubHeader>
+
+            <Row
+              label="Note names"
+              title="Show each note's name on the sheet music noteheads (Sheet and All views). Half and whole notes keep an open ring so rhythm stays readable."
+              sublabel="on the noteheads"
+              stacked
+            >
+              <BtnGroup
+                aria-label="Sheet music note names"
+                options={NOTE_LABEL_OPTIONS}
+                value={settings.sheetNoteLabelMode}
+                onChange={(v) => updateSettings({ sheetNoteLabelMode: v })}
+                fullWidth
+              />
+            </Row>
+
+            <Row
+              label="Chord names"
+              sublabel="above the staff, where 3+ notes are played together"
+              title="Name the chord wherever three or more notes are struck together (block chords). Shown only when the notes exactly match a known chord, and only when the chord changes. Files with their own chord symbols show those instead."
+            >
+              <Toggle
+                active={settings.sheetChordNames}
+                onClick={() => updateSettings({ sheetChordNames: !settings.sheetChordNames })}
+              />
+            </Row>
+
             <Row
               label="White score background"
               sublabel="keep sheet music on white in dark mode"

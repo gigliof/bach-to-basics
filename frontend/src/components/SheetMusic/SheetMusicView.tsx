@@ -1,9 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import bus from "../../engine/EventBus";
 import { useAppStore } from "../../store/useAppStore";
 import { syncEngine } from "../../engine/SyncEngine";
 import { keySignatureToLabel } from "@bach-to-basics/shared";
 import type { TempoEvent } from "@bach-to-basics/shared";
+import { SheetNoteLabels } from "./SheetNoteLabels";
+import { SheetChordLabels } from "./SheetChordLabels";
+import {
+  collectChordLayout,
+  collectNoteBoxes,
+  type ChordLayout,
+  type SheetNoteBox,
+} from "../../utils/sheetNoteLabels";
 
 // T3-1: Defense-in-depth: strip potential XSS vectors from MusicXML before
 // passing to AlphaTab.  AlphaTab likely renders SVG programmatically (safe),
@@ -12,6 +20,13 @@ import type { TempoEvent } from "@bach-to-basics/shared";
 // markings, lyrics, etc.) - they must NOT be stripped or AlphaTab receives
 // malformed XML. AlphaTab processes MusicXML as data, not HTML, so CDATA
 // poses no XSS risk here.
+/** Page-mode scale: a little larger while note names sit on the noteheads, so they're legible. */
+const PAGE_SCALE = 0.9;
+const PAGE_SCALE_WITH_LABELS = 1.2;
+function pageScale(s: { sheetNoteLabelMode: string }): number {
+  return s.sheetNoteLabelMode !== "none" ? PAGE_SCALE_WITH_LABELS : PAGE_SCALE;
+}
+
 function sanitizeMusicXml(xml: string): string {
   return xml.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\bon\w+\s*=/gi, "data-removed=");
 }
@@ -39,6 +54,9 @@ export function SheetMusicView() {
   // bar-to-bar jumps). onTick updates the target; the loop animates toward it.
   const scrollTargetRef = useRef(0);
   const rafScrollId = useRef<number | null>(null);
+  // Notehead positions from the last render, for the note-name overlay
+  const [noteBoxes, setNoteBoxes] = useState<SheetNoteBox[]>([]);
+  const [chordLayout, setChordLayout] = useState<ChordLayout | null>(null);
 
   // ── AlphaTab init (runs once on mount) ──────────────────────────────────
   useEffect(() => {
@@ -58,13 +76,20 @@ export function SheetMusicView() {
 
       const api = new AlphaTabApi(containerRef.current, {
         // fontDirectory matches where the alphaTab Vite plugin emits Bravura.
-        core: { engine: "svg", enableLazyLoading: false, logLevel: 0, fontDirectory: "/font/" },
+        // includeNoteBounds: exact notehead positions, used by the note-name overlay
+        core: {
+          engine: "svg",
+          enableLazyLoading: false,
+          logLevel: 0,
+          fontDirectory: "/font/",
+          includeNoteBounds: true,
+        },
         display: {
           layoutMode: horizontal ? 1 : 0, // 1 = horizontal strip, 0 = page (vertical)
           // Smaller scale in the horizontal "all" band so the full grand staff
           // (both clefs) fits the short band height without the bass clef being
           // clipped. Page mode keeps the larger, more readable 0.9.
-          scale: horizontal ? 0.62 : 0.9,
+          scale: horizontal ? 0.62 : pageScale(useAppStore.getState().settings),
           // stretchForce 0 = notes keep their natural rhythmic proportions (like
           // a printed score).  A very small value (0.1) avoids a ragged right
           // edge on the last system without visibly compressing the spacing.
@@ -107,6 +132,17 @@ export function SheetMusicView() {
           if (score.tracks.length > 1 && api.tracks.length < score.tracks.length) {
             api.renderTracks(score.tracks);
           }
+        });
+      } catch {
+        /* ignore */
+      }
+
+      // ── Notehead positions for the note-name overlay (after every render,
+      //    including the re-renders alphaTab does on resize) ─────────────────
+      try {
+        api.postRenderFinished.on(() => {
+          setNoteBoxes(collectNoteBoxes(api.boundsLookup));
+          setChordLayout(collectChordLayout(api.boundsLookup));
         });
       } catch {
         /* ignore */
@@ -248,6 +284,17 @@ export function SheetMusicView() {
 
   // ── Load when MusicXML/mxlBuffer arrives after initial mount ────────────
   const { document: doc, settings } = useAppStore();
+  // Re-render at the page scale that fits the note-name setting
+  const wantedScale = pageScale(settings);
+  useEffect(() => {
+    const api = apiRef.current;
+    if (!api || settings.layoutMode === "all") return;
+    if (api.settings.display.scale === wantedScale) return;
+    api.settings.display.scale = wantedScale;
+    api.updateSettings();
+    api.render();
+  }, [wantedScale, settings.layoutMode]);
+
   const isDark = settings.theme === "dark";
   const keepWhite = isDark && settings.sheetMusicWhiteBackground;
   const invertSheet = isDark && !settings.sheetMusicWhiteBackground;
@@ -338,6 +385,15 @@ export function SheetMusicView() {
         }}
       >
         <div ref={containerRef} className={invertSheet ? "sheet-dark-invert" : ""} />
+        {/* Note names: outside the inverted container so their colours stay true */}
+        <SheetNoteLabels
+          boxes={noteBoxes}
+          offsetX={16}
+          offsetY={8}
+          paper={keepWhite ? "#ffffff" : "var(--color-notes-bg)"}
+          ink={keepWhite ? "#111111" : "var(--color-text)"}
+        />
+        <SheetChordLabels layout={chordLayout} offsetX={16} offsetY={8} compact={horizontalSheet} />
 
         {settings.showKeySignature && doc?.keySignature && settings.layoutMode !== "all" && (
           <div

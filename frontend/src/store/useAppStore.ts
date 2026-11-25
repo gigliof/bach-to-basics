@@ -89,6 +89,10 @@ export interface AppSettings {
   noteLabelMode: NoteLabelMode;
   /** Note labels on the falling notes bars */
   fallingNotesLabelMode: NoteLabelMode;
+  /** Note names on the sheet music noteheads */
+  sheetNoteLabelMode: NoteLabelMode;
+  /** Chord names above the staff, detected where 3+ notes are struck together */
+  sheetChordNames: boolean;
   pianoTheme: "white" | "ivory";
   showGrid: boolean;
   showMeasureNums: boolean;
@@ -257,6 +261,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // ── New defaults ──────────────────────────────────────────────────────────
   noteLabelMode: "c_only",
   fallingNotesLabelMode: "all",
+  sheetNoteLabelMode: "none",
+  sheetChordNames: false,
   pianoTheme: "white",
   showGrid: false,
   showMeasureNums: true,
