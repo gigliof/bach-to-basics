@@ -418,10 +418,11 @@ export function TransportControls() {
                 title={`${active ? "Mute" : "Unmute"} ${h} hand`}
                 aria-label={`${active ? "Mute" : "Unmute"} ${h} hand`}
                 aria-pressed={active}
-                className="rounded text-xs font-bold transition-all"
+                className="text-xs font-bold transition-all"
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: 32,
+                  height: 32,
+                  borderRadius: 7,
                   cursor: "pointer",
                   fontFamily: "inherit",
                   ...(active
@@ -493,7 +494,7 @@ export function TransportControls() {
               title="Set loop start (A) to current position"
               aria-label="Set loop start to current position"
               style={{
-                height: 28,
+                height: 30,
                 padding: "0 8px",
                 background: "transparent",
                 border: "none",
@@ -518,7 +519,7 @@ export function TransportControls() {
               aria-label={loopActive ? "Clear loop" : "Start loop"}
               aria-pressed={loopActive}
               style={{
-                height: 28,
+                height: 30,
                 padding: "0 9px",
                 background: loopActive ? "var(--color-accent-subtle)" : "transparent",
                 border: "none",
@@ -544,7 +545,7 @@ export function TransportControls() {
               title="Set loop end (B) to current position"
               aria-label="Set loop end to current position"
               style={{
-                height: 28,
+                height: 30,
                 padding: "0 8px",
                 background: "transparent",
                 border: "none",
@@ -740,9 +741,10 @@ function ChipBtn({
       aria-label={ariaLabel ?? title}
       aria-pressed={ariaPressed}
       disabled={disabled}
-      className="flex items-center gap-1 rounded text-xs font-medium transition-all shrink-0"
+      className="flex items-center gap-1 text-xs font-medium transition-all shrink-0"
       style={{
-        height: 28,
+        height: 32,
+        borderRadius: 7,
         padding: "0 8px",
         cursor: disabled ? "default" : "pointer",
         fontFamily: "inherit",
