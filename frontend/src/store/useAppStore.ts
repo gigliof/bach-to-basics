@@ -4,6 +4,13 @@ import bus from "../engine/EventBus";
 import type { MusicDocument, PlaybackStatus, NoteEvent, Finger } from "@bach-to-basics/shared";
 import type { InstrumentId } from "../engine/AudioEngine";
 import { applyFingeringMarks, type FingeringMark } from "../utils/fingeringMarks";
+import {
+  isRestorable,
+  loadLastDocument,
+  loadSettings,
+  saveLastDocument,
+  saveSettings,
+} from "./persistence";
 export { computeMeasureSeconds, keySignatureToLabel } from "@bach-to-basics/shared";
 export type { InstrumentId } from "../engine/AudioEngine";
 export { INSTRUMENT_LABELS } from "../engine/AudioEngine";
@@ -243,6 +250,21 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showSustainedNotes: false,
 };
 
+/** Push every engine-relevant setting to the SyncEngine (startup and reset). */
+function applySettingsToEngine(st: AppSettings) {
+  syncEngine.setTranspose(st.transposeSemitones);
+  syncEngine.setCountInBars(st.countInBars);
+  syncEngine.setSpeedTrainer(st.speedTrainer);
+  syncEngine.setActiveHands(st.activeHands);
+  syncEngine.setHandVolume(st.handVolume);
+  syncEngine.setWaitForHand(st.waitForHand);
+  syncEngine.setRequireHeldNotes(st.waitRequireHeld);
+  syncEngine.setInstrument(st.instrument).catch(console.warn);
+  syncEngine.setRenderOffset(st.renderOffset);
+  // Metronome is applied on play(): turning it on creates a Tone synth, which
+  // must not happen before a user gesture.
+}
+
 export const useAppStore = create<AppState>((set, get) => {
   // Subscribe to SyncEngine state changes --> push into Zustand
   syncEngine.onStateChange((s) => {
@@ -281,7 +303,7 @@ export const useAppStore = create<AppState>((set, get) => {
     loopStart: null,
     loopEnd: null,
     waitMode: false,
-    settings: DEFAULT_SETTINGS,
+    settings: loadSettings(DEFAULT_SETTINGS),
     midiDeviceName: null,
     midiEnabled: false,
 
@@ -704,6 +726,8 @@ export const useAppStore = create<AppState>((set, get) => {
           },
         }));
       }
+      if (syncEngine.state.metronomeEnabled !== settings.metronomeEnabled)
+        syncEngine.setMetronome(settings.metronomeEnabled);
       syncEngine.play();
     },
     pause: () => syncEngine.pause(),
@@ -769,18 +793,10 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     resetSettings: () => {
-      set({ settings: { ...DEFAULT_SETTINGS } });
-      // Re-sync engine with defaults
-      syncEngine.setTranspose(DEFAULT_SETTINGS.transposeSemitones);
-      syncEngine.setCountInBars(DEFAULT_SETTINGS.countInBars);
-      syncEngine.setSpeedTrainer(DEFAULT_SETTINGS.speedTrainer);
+      // Keep the current theme: it has its own toggle and storage
+      set((s) => ({ settings: { ...DEFAULT_SETTINGS, theme: s.settings.theme } }));
+      applySettingsToEngine(DEFAULT_SETTINGS);
       syncEngine.setMetronome(DEFAULT_SETTINGS.metronomeEnabled);
-      syncEngine.setActiveHands(DEFAULT_SETTINGS.activeHands);
-      syncEngine.setHandVolume(DEFAULT_SETTINGS.handVolume);
-      syncEngine.setWaitForHand(DEFAULT_SETTINGS.waitForHand);
-      syncEngine.setRequireHeldNotes(DEFAULT_SETTINGS.waitRequireHeld);
-      syncEngine.setInstrument(DEFAULT_SETTINGS.instrument).catch(console.warn);
-      syncEngine.setRenderOffset(DEFAULT_SETTINGS.renderOffset);
     },
 
     setMidiDevice: (name) => set({ midiDeviceName: name, midiEnabled: name !== null }),
@@ -800,6 +816,40 @@ export const useAppStore = create<AppState>((set, get) => {
     },
   };
 });
+
+// ── Remember settings and the last song ──────────────────────────────────────
+
+// Settings were read from storage when the store was created; sync the engine.
+applySettingsToEngine(useAppStore.getState().settings);
+
+let settingsSaveTimer: ReturnType<typeof setTimeout> | undefined;
+let docSaveTimer: ReturnType<typeof setTimeout> | undefined;
+useAppStore.subscribe((state, prev) => {
+  if (state.settings !== prev.settings) {
+    clearTimeout(settingsSaveTimer);
+    settingsSaveTimer = setTimeout(() => saveSettings(useAppStore.getState().settings), 300);
+  }
+  // Only fully imported songs; later updates (sheet music arriving from the
+  // backend, generated fingering) re-save the same song.
+  if (state.document !== prev.document && isRestorable(state.document)) {
+    clearTimeout(docSaveTimer);
+    docSaveTimer = setTimeout(() => {
+      const doc = useAppStore.getState().document;
+      if (isRestorable(doc)) saveLastDocument(doc).catch(() => {});
+    }, 500);
+  }
+});
+
+/** Reopen the song from the previous visit (no-op if none, or one is already open). */
+export async function restoreLastDocument(): Promise<void> {
+  const doc = await loadLastDocument();
+  if (!doc || useAppStore.getState().document) return;
+  useAppStore.setState({ document: doc });
+  await syncEngine.loadDocument(doc);
+  // A MIDI import whose sheet music hadn't arrived before the page closed
+  if (doc.sourceType === "midi" && !doc.musicXml && doc.midiBuffer)
+    fetchMusicXml(doc.midiBuffer.slice(0), doc, doc.id).catch(console.warn);
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
