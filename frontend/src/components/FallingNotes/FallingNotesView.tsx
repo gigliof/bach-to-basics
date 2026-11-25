@@ -4,22 +4,13 @@ import { FallingNotesRenderer } from "./FallingNotesRenderer";
 import { useAppStore } from "../../store/useAppStore";
 import { computeMeasureSeconds, computeBeatSeconds } from "@bach-to-basics/shared";
 import type { NoteEvent } from "@bach-to-basics/shared";
-import { useAccuracy } from "../../hooks/useAccuracy";
 
 export function FallingNotesView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<FallingNotesRenderer | null>(null);
   const lastSecondsRef = useRef(0);
-  const { settings, document: doc, midiEnabled, status, seek } = useAppStore();
-
-  // During a test, show the test's own score; otherwise the live accuracy
-  // (active when a MIDI device is connected).
-  const testLive = useAppStore((s) => (s.testState?.phase === "running" ? s.testState.live : null));
-  const liveAccuracy = useAccuracy(
-    !testLive && midiEnabled && (status === "playing" || status === "paused")
-  );
-  const accuracy = testLive ?? liveAccuracy;
+  const { settings, document: doc, seek } = useAppStore();
 
   const measureStarts = useMemo(
     () =>
@@ -185,44 +176,6 @@ export function FallingNotesView() {
       }}
     >
       <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />
-
-      {(testLive || midiEnabled) && accuracy.correct + accuracy.wrong + accuracy.missed > 0 && (
-        <div
-          className="absolute top-2 left-2 z-10 pointer-events-none text-xs px-2 py-0.5 rounded-full font-medium"
-          style={{
-            background:
-              accuracy.score >= 80
-                ? "rgba(34,197,94,0.12)"
-                : accuracy.score >= 50
-                  ? "rgba(234,179,8,0.12)"
-                  : "rgba(239,68,68,0.12)",
-            color: accuracy.score >= 80 ? "#4ade80" : accuracy.score >= 50 ? "#eab308" : "#ef4444",
-            border: "1px solid currentColor",
-          }}
-        >
-          <TargetIcon /> {testLive ? "Test " : ""}
-          {accuracy.score}%
-        </div>
-      )}
     </div>
   );
 }
-
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
-const TargetIcon = () => (
-  <svg
-    width="11"
-    height="11"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    style={{ display: "inline", verticalAlign: "middle", marginBottom: 1 }}
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="12" r="9" />
-    <circle cx="12" cy="12" r="5" />
-    <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
-  </svg>
-);

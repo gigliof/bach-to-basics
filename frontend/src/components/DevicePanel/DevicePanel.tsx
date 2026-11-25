@@ -98,9 +98,12 @@ export function DevicePanel() {
   if (midiStatus === "error") {
     return (
       <div
-        className="text-xs px-2 py-1 rounded cursor-help shrink-0"
+        className="flex items-center gap-1.5 text-xs font-semibold cursor-help shrink-0"
         title={errorMsg ?? "MIDI error"}
         style={{
+          padding: "4px 10px",
+          borderRadius: 999,
+          fontSize: 12,
           color: "var(--color-warning)",
           background: "var(--color-warning-subtle)",
           border: "1px solid var(--color-warning-border)",

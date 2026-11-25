@@ -6,6 +6,7 @@ import { TransportControls } from "../components/Transport/TransportControls";
 import { SettingsPanel } from "../components/Transport/SettingsPanel";
 import { DevicePanel } from "../components/DevicePanel/DevicePanel";
 import { TestDialogs } from "../components/Test/TestDialogs";
+import { ScorePill } from "../components/ScorePill/ScorePill";
 import { useAppStore } from "../store/useAppStore";
 import type { LayoutMode } from "../store/useAppStore";
 import bus from "../engine/EventBus";
@@ -232,8 +233,9 @@ export function PracticeView() {
           </div>
         </div>
 
-        {/* Right: MIDI device chip + theme toggle + settings gear */}
+        {/* Right: live score + MIDI device chip + theme toggle + settings gear */}
         <div className="flex items-center gap-1.5" style={{ marginLeft: "auto" }}>
+          <ScorePill />
           <DevicePanel />
           <button
             onClick={() => updateSettings({ theme: settings.theme === "dark" ? "light" : "dark" })}
