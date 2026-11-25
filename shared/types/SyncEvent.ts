@@ -83,6 +83,9 @@ export interface SyncEventMap {
    * Emitted by AccuracyTracker after each note event with running totals.
    */
   "accuracy:update": { correct: number; wrong: number; missed: number; score: number };
+
+  /** Test Mode: playback reached the end of the tested section. */
+  "test:finished": Record<string, never>;
 }
 
 export type SyncEventName = keyof SyncEventMap;

@@ -39,7 +39,11 @@ export function TransportControls() {
     exportMp3,
     isExportingPdf,
     isExportingMp3,
+    testState,
+    openTestSetup,
+    cancelTest,
   } = useAppStore();
+  const testRunning = testState?.phase === "running";
 
   const [speedOpen, setSpeedOpen] = useState(false);
   const [speedRect, setSpeedRect] = useState<{ bottom: number; right: number } | null>(null);
@@ -461,6 +465,17 @@ export function TransportControls() {
             <WaitIcon /> Wait
           </ChipBtn>
 
+          <ChipBtn
+            active={testRunning}
+            onClick={testRunning ? cancelTest : openTestSetup}
+            disabled={!doc || doc.notes.length === 0}
+            title={testRunning ? "Cancel the test" : "Play the piece once and get a score"}
+            aria-label={testRunning ? "Cancel test" : "Test"}
+            aria-pressed={testRunning}
+          >
+            <TestIcon /> {testRunning ? "Testing…" : "Test"}
+          </ChipBtn>
+
           {/* ── A / Loop / B - single compound grouped control ── */}
           <div
             className="flex items-center shrink-0"
@@ -872,6 +887,12 @@ const WaitIcon = () => (
     <rect x="7.5" y="1" width="2.5" height="10.5" rx="1.25" />
     <rect x="11" y="1.5" width="2.5" height="10" rx="1.25" />
     <rect x="14" y="4" width="2.5" height="7.5" rx="1.25" />
+  </svg>
+);
+
+const TestIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <path d="M7 2a1 1 0 0 0-1 1H4.5A1.5 1.5 0 0 0 3 4.5v13A1.5 1.5 0 0 0 4.5 19h11a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 15.5 3H14a1 1 0 0 0-1-1H7zm0 1.5h6V5H7V3.5zm6.03 5.47a.75.75 0 0 1 0 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-1.5-1.5a.75.75 0 1 1 1.06-1.06l.97.97 2.97-2.97a.75.75 0 0 1 1.06 0z" />
   </svg>
 );
 

@@ -95,6 +95,12 @@ class SyncEngine {
   // in the score, keyed by note id. Checked at every later wait point.
   private pendingHolds = new Map<string, { note: NoteEvent; midi: number }>();
 
+  // ── Test Mode ───────────────────────────────────────────────────────────────
+  // Hands the player is being tested on (their notes are shown, not played),
+  // and where the tested section ends. null = no test running.
+  private testHands: Set<"left" | "right"> | null = null;
+  private testEndSeconds: number | null = null;
+
   // ── Practice features ───────────────────────────────────────────────────────
   private renderOffsetMs = 0;
   private transposeSemitones = 0;
@@ -238,6 +244,7 @@ class SyncEngine {
   }
 
   stop() {
+    this.endTest(); // a stop always ends a test run
     this._cancelCountIn();
     this.clock.stop();
     this.audio.stopAll();
@@ -368,6 +375,17 @@ class SyncEngine {
     this.emitState(this._state.status);
   }
 
+  /** Start scoring a run: the app won't play these hands; ends at `endSeconds`. */
+  beginTest(hands: Set<"left" | "right">, endSeconds: number) {
+    this.testHands = new Set(hands);
+    this.testEndSeconds = endSeconds;
+  }
+
+  endTest() {
+    this.testHands = null;
+    this.testEndSeconds = null;
+  }
+
   setWaitForHand(hand: "left" | "right" | "both") {
     this._state.waitForHand = hand;
   }
@@ -487,6 +505,12 @@ class SyncEngine {
     this.lastBeatCrossed = Math.floor(seconds / (60 / bpm));
   }
 
+  /** In a test, is this note the player's (so the app shows it but doesn't play it)? */
+  private isTestNote(note: NoteEvent): boolean {
+    if (!this.testHands) return false;
+    return note.hand === "unknown" || this.testHands.has(note.hand as "left" | "right");
+  }
+
   /** Is this note one the player must play themselves in wait mode? (Read at fire time.) */
   private isWaitTarget(note: NoteEvent): boolean {
     if (!this._state.waitMode) return false;
@@ -574,6 +598,18 @@ class SyncEngine {
       }
     }
 
+    // ── Test Mode: end of the tested section (before the loop would wrap) ─────
+    if (
+      this.testHands &&
+      this.testEndSeconds !== null &&
+      docSeconds >= this.testEndSeconds - 0.05
+    ) {
+      this.endTest();
+      bus.emit("test:finished", {});
+      this.stop();
+      return;
+    }
+
     // ── Loop ──────────────────────────────────────────────────────────────────
     const { loopStart, loopEnd, tempoMultiplier } = this._state;
     if (loopStart !== null && loopEnd !== null && docSeconds >= loopEnd) {
@@ -646,7 +682,7 @@ class SyncEngine {
         bus.emit("note:on", tNote);
         // In wait mode the player performs target notes themselves - show them,
         // but don't play them (avoids doubling a piano that has its own sound).
-        if (this.isWaitTarget(note)) return;
+        if (this.isWaitTarget(note) || this.isTestNote(note)) return;
         // Apply per-hand volume multiplier (also read at fire-time for instant effect)
         const handVol =
           note.hand === "left"

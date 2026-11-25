@@ -46,6 +46,7 @@ vi.mock("../engine/AudioEngine", () => ({
 }));
 
 import { syncEngine } from "../engine/SyncEngine";
+import bus from "../engine/EventBus";
 
 /** Fire every not-yet-fired event due at or before `delay`, in time then insertion order. */
 function runUntil(delay: number) {
@@ -291,6 +292,63 @@ describe("wait mode: require held notes", () => {
     runUntil(1);
     syncEngine.onMidiInput(74, 80);
     expect(syncEngine.state.status).toBe("playing");
+  });
+});
+
+describe("test mode", () => {
+  beforeEach(() => {
+    sched.items.length = 0;
+    syncEngine.setTranspose(0);
+    syncEngine.setActiveHands(new Set(["left", "right"]));
+    syncEngine.setHandVolume({ left: 1, right: 1 });
+    syncEngine.endTest();
+    Object.values(audio).forEach((fn) => fn.mockClear?.());
+  });
+
+  it("doesn't play the tested hand, but still plays the other", async () => {
+    await setup([note("r", 72, 0, "right"), note("l", 48, 0, "left")], false);
+    syncEngine.beginTest(new Set(["right"]), 10);
+    eng.onTick(0);
+    runUntil(0);
+    expect(audio.playNote.mock.calls.map((c) => (c[0] as NoteEvent).id)).toEqual(["l"]);
+  });
+
+  it("still shows the tested notes (note:on fires for them)", async () => {
+    const seen: string[] = [];
+    const onNote = (n: NoteEvent) => seen.push(n.id);
+    bus.on("note:on", onNote);
+    await setup([note("r", 72, 0, "right")], false);
+    syncEngine.beginTest(new Set(["right"]), 10);
+    eng.onTick(0);
+    runUntil(0);
+    bus.off("note:on", onNote);
+    expect(seen).toEqual(["r"]);
+  });
+
+  it("signals the end of the tested section and stops, instead of looping", async () => {
+    let finished = 0;
+    const onFinished = () => finished++;
+    bus.on("test:finished", onFinished);
+    await setup([note("a", 60, 0)], false);
+    syncEngine.setLoopPoints(0, 2);
+    syncEngine.beginTest(new Set(["right"]), 2);
+    eng.onTick(1);
+    expect(finished).toBe(0);
+    eng.onTick(2);
+    bus.off("test:finished", onFinished);
+    syncEngine.setLoopPoints(null, null);
+    expect(finished).toBe(1);
+    expect(syncEngine.state.status).toBe("stopped");
+  });
+
+  it("stopping ends the test", async () => {
+    await setup([note("r", 72, 0, "right")], false);
+    syncEngine.beginTest(new Set(["right"]), 10);
+    syncEngine.stop();
+    eng._state.status = "playing";
+    eng.onTick(0);
+    runUntil(0);
+    expect(audio.playNote).toHaveBeenCalled(); // back to normal playback
   });
 });
 

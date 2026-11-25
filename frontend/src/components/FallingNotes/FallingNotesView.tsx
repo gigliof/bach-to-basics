@@ -13,8 +13,13 @@ export function FallingNotesView() {
   const lastSecondsRef = useRef(0);
   const { settings, document: doc, midiEnabled, status, seek } = useAppStore();
 
-  // Accuracy scoring - active when MIDI device connected
-  const accuracy = useAccuracy(midiEnabled && (status === "playing" || status === "paused"));
+  // During a test, show the test's own score; otherwise the live accuracy
+  // (active when a MIDI device is connected).
+  const testLive = useAppStore((s) => (s.testState?.phase === "running" ? s.testState.live : null));
+  const liveAccuracy = useAccuracy(
+    !testLive && midiEnabled && (status === "playing" || status === "paused")
+  );
+  const accuracy = testLive ?? liveAccuracy;
 
   const measureStarts = useMemo(
     () =>
@@ -181,7 +186,7 @@ export function FallingNotesView() {
     >
       <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />
 
-      {midiEnabled && accuracy.correct + accuracy.wrong + accuracy.missed > 0 && (
+      {(testLive || midiEnabled) && accuracy.correct + accuracy.wrong + accuracy.missed > 0 && (
         <div
           className="absolute top-2 left-2 z-10 pointer-events-none text-xs px-2 py-0.5 rounded-full font-medium"
           style={{
@@ -195,7 +200,8 @@ export function FallingNotesView() {
             border: "1px solid currentColor",
           }}
         >
-          <TargetIcon /> {accuracy.score}%
+          <TargetIcon /> {testLive ? "Test " : ""}
+          {accuracy.score}%
         </div>
       )}
     </div>

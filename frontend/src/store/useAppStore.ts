@@ -11,6 +11,8 @@ import {
   saveLastDocument,
   saveSettings,
 } from "./persistence";
+import { startTestRun } from "../engine/TestRun";
+import type { TestHand, TestResult, TestTotals } from "../engine/TestScorer";
 export { computeMeasureSeconds, keySignatureToLabel } from "@bach-to-basics/shared";
 export type { InstrumentId } from "../engine/AudioEngine";
 export { INSTRUMENT_LABELS } from "../engine/AudioEngine";
@@ -119,6 +121,18 @@ export interface AppSettings {
   showSustainedNotes: boolean;
 }
 
+/** Test Mode: setup screen, a run in progress, or the results screen. */
+export type TestState =
+  | { phase: "setup" }
+  | { phase: "running"; hands: TestHand[]; live: TestTotals }
+  | {
+      phase: "results";
+      hands: TestHand[];
+      result: TestResult;
+      tempoPct: number;
+      section: "piece" | "loop";
+    };
+
 export interface AppState {
   // ── Document ─────────────────────────────────────────────────────────────
   document: MusicDocument | null;
@@ -148,6 +162,9 @@ export interface AppState {
   midiDeviceName: string | null;
   midiEnabled: boolean;
 
+  // ── Test Mode ────────────────────────────────────────────────────────────
+  testState: TestState | null;
+
   // ── Actions ──────────────────────────────────────────────────────────────
   loadMidiFile: (file: File) => Promise<void>;
   loadMusicXmlFile: (file: File) => Promise<void>;
@@ -172,7 +189,14 @@ export interface AppState {
   setMidiDevice: (name: string | null) => void;
   clearLoadError: () => void;
   syncEngineState: () => void;
+  openTestSetup: () => void;
+  startTest: (hands: TestHand[]) => void;
+  cancelTest: () => void;
+  closeTest: () => void;
 }
+
+/** Cancels the test run in progress, if any. */
+let cancelTestRun: (() => void) | null = null;
 
 /** localStorage key for persisting the user's theme choice across reloads. */
 const THEME_STORAGE_KEY = "b2b-theme";
@@ -306,6 +330,7 @@ export const useAppStore = create<AppState>((set, get) => {
     settings: loadSettings(DEFAULT_SETTINGS),
     midiDeviceName: null,
     midiEnabled: false,
+    testState: null,
 
     loadMidiFile: async (file: File) => {
       set({ isLoadingDocument: true, loadError: null });
@@ -802,6 +827,74 @@ export const useAppStore = create<AppState>((set, get) => {
     setMidiDevice: (name) => set({ midiDeviceName: name, midiEnabled: name !== null }),
 
     clearLoadError: () => set({ loadError: null }),
+
+    openTestSetup: () => {
+      if (get().testState?.phase === "running") return;
+      set({ testState: { phase: "setup" } });
+    },
+
+    startTest: (hands) => {
+      const { document: doc, loopStart, loopEnd, waitMode, settings, tempoMultiplier } = get();
+      if (!doc || doc.notes.length === 0 || hands.length === 0) return;
+      cancelTestRun?.();
+      syncEngine.stop();
+
+      // A test is played straight through: no wait mode, and the tested hands
+      // must be visible. Always at least one bar of count-in.
+      const restoreWait = waitMode;
+      if (waitMode) get().setWaitMode(false);
+      const active = settings.activeHands;
+      if (hands.some((h) => !active.has(h))) get().setActiveHands(new Set([...active, ...hands]));
+      syncEngine.setCountInBars(Math.max(1, settings.countInBars) as 1 | 2);
+      if (syncEngine.state.metronomeEnabled !== settings.metronomeEnabled)
+        syncEngine.setMetronome(settings.metronomeEnabled);
+
+      const isLoop = loopStart !== null && loopEnd !== null && loopEnd > loopStart;
+      const restore = () => {
+        cancelTestRun = null;
+        syncEngine.setCountInBars(get().settings.countInBars);
+        if (restoreWait) get().setWaitMode(true);
+      };
+
+      set({
+        testState: { phase: "running", hands, live: { correct: 0, missed: 0, wrong: 0, score: 0 } },
+      });
+      cancelTestRun = startTestRun({
+        hands: new Set(hands),
+        fromSeconds: isLoop ? loopStart : 0,
+        toSeconds: isLoop ? loopEnd : doc.totalDuration,
+        onUpdate: (live) => {
+          const ts = get().testState;
+          if (ts?.phase === "running") set({ testState: { ...ts, live } });
+        },
+        onFinish: (result) => {
+          restore();
+          set({
+            testState: {
+              phase: "results",
+              hands,
+              result,
+              tempoPct: Math.round(tempoMultiplier * 100),
+              section: isLoop ? "loop" : "piece",
+            },
+          });
+        },
+        onCancel: () => {
+          restore();
+          set({ testState: null });
+        },
+      });
+    },
+
+    cancelTest: () => {
+      // Stopping playback cancels the run (TestRun listens for it)
+      if (cancelTestRun) syncEngine.stop();
+      else set({ testState: null });
+    },
+
+    closeTest: () => {
+      if (get().testState?.phase !== "running") set({ testState: null });
+    },
 
     syncEngineState: () => {
       const s = syncEngine.state;

@@ -5,6 +5,7 @@ import { SheetMusicView } from "../components/SheetMusic/SheetMusicView";
 import { TransportControls } from "../components/Transport/TransportControls";
 import { SettingsPanel } from "../components/Transport/SettingsPanel";
 import { DevicePanel } from "../components/DevicePanel/DevicePanel";
+import { TestDialogs } from "../components/Test/TestDialogs";
 import { useAppStore } from "../store/useAppStore";
 import type { LayoutMode } from "../store/useAppStore";
 import bus from "../engine/EventBus";
@@ -333,6 +334,9 @@ export function PracticeView() {
 
       {/* ── Settings panel (managed here, gear is in header) ───────────────── */}
       <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {/* ── Test Mode setup / results ──────────────────────────────────────── */}
+      <TestDialogs />
     </div>
   );
 }
